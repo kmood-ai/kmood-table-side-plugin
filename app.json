@@ -1,0 +1,16 @@
+{
+  "name": "kmood-table-side-plugin",
+  "proto": {
+    "target": "./generated",
+    "modules": [
+      {
+        "url": "https://gitlab.basemind.com/proto/meta.git",
+        "buf_module_path": [
+          "ipimage/upload",
+          "ipimage/shotify",
+          "ipimage/common"
+        ]
+      }
+    ]
+  }
+}
