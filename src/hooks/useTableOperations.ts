@@ -1,5 +1,9 @@
 import { useCallback } from "react";
-import { bitable, type IFieldMeta, type ITableMeta } from "@lark-base-open/js-sdk";
+import {
+  bitable,
+  type IFieldMeta,
+  type ITableMeta,
+} from "@lark-base-open/js-sdk";
 import { useSelection } from "./useSelection";
 
 /**
@@ -76,7 +80,7 @@ export function useTableOperations() {
         name: meta.name,
         type: meta.type,
         isPrimary: meta.isPrimary || false,
-        description: meta.description,
+        // description: meta.description || '',
       }));
     } catch (error) {
       console.error("useTableOperations.getFieldList: 获取字段列表失败", error);
@@ -107,7 +111,7 @@ export function useTableOperations() {
           name: meta.name,
           type: meta.type,
           isPrimary: meta.isPrimary || false,
-          description: meta.description,
+          // description: meta.description,
         }));
       } catch (error) {
         console.error(
@@ -174,7 +178,10 @@ export function useTableOperations() {
       try {
         return await bitable.base.getTableMetaById(tableId);
       } catch (error) {
-        console.error("useTableOperations.getTableMeta: 获取表格元信息失败", error);
+        console.error(
+          "useTableOperations.getTableMeta: 获取表格元信息失败",
+          error
+        );
         throw error;
       }
     },

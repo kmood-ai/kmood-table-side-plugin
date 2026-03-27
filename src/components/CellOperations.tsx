@@ -42,8 +42,6 @@ export default function CellOperations({ disabled }: CellOperationsProps) {
   const { state: selectionState, refresh } = useSelection();
   const cellInfo = selectionState.cellValue;
 
-  console.log('[CellOperations cellValue], ', cellInfo);
-
   // 提交提取任务
   const handleSubmitExtract = useCallback(async () => {
     if (!cellInfo) {

@@ -5,8 +5,16 @@ import { execSync } from 'node:child_process';
 import prompts from 'prompts';
 import dotenv from 'dotenv';
 
-// 加载 .env 配置文件
-dotenv.config();
+// 解析命令行参数，获取环境配置
+const args = process.argv.slice(2);
+const envArg = args.find(arg => arg.startsWith('--env='));
+const targetEnv = envArg ? envArg.split('=')[1] : 'prod';
+
+// 根据环境加载对应的 .env 配置文件
+const envFile = targetEnv === 'test' ? '.env.test' : '.env';
+dotenv.config({ path: envFile });
+
+console.log(`\n📦 加载配置文件: ${envFile}`);
 
 const env = process.env.TOS_ENV
 // 拿来即用

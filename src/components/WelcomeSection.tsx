@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Typography, Card, Spin, Collapse, Tag, Space, Descriptions } from 'antd';
-import { UserOutlined, DatabaseOutlined, TableOutlined, AppstoreOutlined, AimOutlined, DownOutlined, CopyOutlined, CheckOutlined } from '@ant-design/icons';
+import { UserOutlined, DatabaseOutlined, TableOutlined, AppstoreOutlined, DownOutlined, CopyOutlined, CheckOutlined } from '@ant-design/icons';
 import { useSelection } from '../hooks';
-import { formatCellValue } from '../utils';
 
 
 const { Title, Text } = Typography;
@@ -33,7 +32,7 @@ function WelcomeSection() {
 
   // 使用全局选中状态
   const { state } = useSelection();
-  const { selectionInfo, tableName, viewName, fieldName, cellValue, loading, cellLoading } = state;
+  const { selectionInfo, tableName, viewName, loading, } = state;
 
   const greeting = getGreeting();
 
@@ -54,6 +53,7 @@ function WelcomeSection() {
       return <Text type="secondary">未选中</Text>;
     }
     const isCopied = copiedId === key;
+
     return (
       <Space size={4}>
         <Tag color="blue" style={{ fontFamily: 'monospace', fontSize: 11, marginRight: 0 }}>
@@ -70,7 +70,7 @@ function WelcomeSection() {
             fontSize: 12,
             transition: 'color 0.2s',
           }}
-          title={isCopied ? '已复制' : '复制 ID'}
+          title={isCopied ? '已复制' : `复制 ${label} ID`}
         >
           {isCopied ? <CheckOutlined /> : <CopyOutlined />}
         </span>
