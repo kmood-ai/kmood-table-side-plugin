@@ -10,13 +10,13 @@
 
 ## 🛠 技术栈
 
-| 分类 | 技术 |
-|------|------|
-| 构建工具 | [Vite](https://vitejs.dev/) 8 |
-| 语言 | [TypeScript](https://www.typescriptlang.org/) 5.9 |
-| 前端框架 | [React](https://react.dev/) 19 |
-| UI 组件库 | [Ant Design](https://ant.design/) 6 |
-| 插件 SDK | [@lark-base-open/js-sdk](https://www.npmjs.com/package/@lark-base-open/js-sdk) |
+| 分类      | 技术                                                                           |
+| --------- | ------------------------------------------------------------------------------ |
+| 构建工具  | [Vite](https://vitejs.dev/) 8                                                  |
+| 语言      | [TypeScript](https://www.typescriptlang.org/) 5.9                              |
+| 前端框架  | [React](https://react.dev/) 19                                                 |
+| UI 组件库 | [Ant Design](https://ant.design/) 6                                            |
+| 插件 SDK  | [@lark-base-open/js-sdk](https://www.npmjs.com/package/@lark-base-open/js-sdk) |
 
 ## 📦 项目结构
 
@@ -78,35 +78,6 @@ npm run preview
 ```bash
 npm run lint
 ```
-
-## ⚙️ .npmrc 配置说明
-
-项目根目录下的 `.npmrc` 文件用于配置 npm 包的下载源，以加速依赖安装并支持私有包。
-
-### 配置示例
-
-在项目根目录创建或编辑 `.npmrc`，写入以下内容：
-
-```ini
-# 使用 npmmirror 镜像源加速公共依赖安装
-registry=https://registry.npmmirror.com
-
-# @step.ai 作用域的私有包走内部私有源
-@step.ai:registry=http://npm.basemind.com
-```
-
-### 配置项说明
-
-| 配置项 | 说明 |
-|--------|------|
-| `registry=https://registry.npmmirror.com` | 将默认 npm 源替换为 npmmirror（淘宝镜像），大幅提升国内网络环境下依赖的下载速度 |
-| `@step.ai:registry=http://npm.basemind.com` | 以 `@step.ai/` 开头的私有包将从公司内部私有源拉取，确保可以正常安装内部依赖 |
-
-### 生效方式
-
-- **项目级生效**：将 `.npmrc` 放在项目根目录，仅对当前项目生效，推荐团队协作使用（可提交到 Git）
-- **用户级生效**：将内容写入 `~/.npmrc`，对当前系统用户的所有项目生效
-- 配置写入后，直接运行 `npm install` 即可自动生效，无需额外操作
 
 ## 📝 License
 
