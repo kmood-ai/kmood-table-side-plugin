@@ -188,7 +188,7 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
       label: '批量处理',
       children: (
         <BatchUploadPanel
-          accept={['zip', 'png', 'jpg']}
+          accept={['png', 'jpg', 'jpeg']}
           title="批量上传资产"
           disabled={disabled}
           onSubmit={onSubmitBatchAssets}

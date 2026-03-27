@@ -242,11 +242,6 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
                 </Button>
               )}
             </Space>
-            {!isConfigured && !tokenLoading && (
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                保存后将自动同步到 BaseID-Token 映射表
-              </Text>
-            )}
           </Space>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
