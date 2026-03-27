@@ -4,6 +4,7 @@
  */
 
 export type TableType = "asset" | "production" | "unknown";
+export type TableTypeLabelKey = "tableType.asset" | "tableType.production" | "tableType.unknown";
 
 /**
  * 资产表识别字段（不区分大小写）
@@ -75,6 +76,15 @@ export function getTableTypeLabel(type: TableType): string {
     unknown: "未匹配",
   };
   return labels[type];
+}
+
+export function getTableTypeLabelKey(type: TableType): TableTypeLabelKey {
+  const keys: Record<TableType, TableTypeLabelKey> = {
+    asset: "tableType.asset",
+    production: "tableType.production",
+    unknown: "tableType.unknown",
+  };
+  return keys[type];
 }
 
 /**

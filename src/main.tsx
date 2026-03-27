@@ -1,16 +1,12 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ConfigProvider } from 'antd';
-import zhCN from 'antd/locale/zh_CN';
-import App from './App';
-import { SelectionProvider } from './contexts/SelectionProvider';
+import { I18nProvider } from './i18n';
+import AppProvider from './AppProvider';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ConfigProvider locale={zhCN}>
-      <SelectionProvider>
-        <App />
-      </SelectionProvider>
-    </ConfigProvider>
+    <I18nProvider>
+      <AppProvider />
+    </I18nProvider>
   </StrictMode>,
 );

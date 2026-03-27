@@ -15,7 +15,7 @@ import {
   TableOutlined,
 } from '@ant-design/icons';
 import { useTableType } from '../hooks/useTableType';
-import { getTableTypeLabel, getTableTypeColor, ASSET_TABLE_FIELDS, PRODUCTION_TABLE_FIELDS } from '../utils/tableTypeRules';
+import { getTableTypeLabelKey, getTableTypeColor, ASSET_TABLE_FIELDS, PRODUCTION_TABLE_FIELDS } from '../utils/tableTypeRules';
 import BatchUploadPanel, { type BatchUploadResult } from './BatchUploadPanel';
 import { fromBase64, outerClient } from '../services';
 import { AssetType } from '../../generated/ipimage/common/types_pb.js';
@@ -26,6 +26,7 @@ import type { SelectedFile } from './FileUpload.js';
 import { SourcePlatform } from '../../generated/ipimage/shotify/outer_pb.js';
 import useSelection from '../hooks/useSelection.js';
 import { TOKEN_STORAGE_KEY } from '../constant.js';
+import { useI18n } from '../i18n';
 
 const { Text } = Typography;
 
@@ -48,6 +49,7 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
   const { tableType, loading: typeLoading } = useTableType();
   const [activeTab, setActiveTab] = useState<string>('extract');
   const { state } = useSelection();
+  const { t } = useI18n();
 
 
   // 当 tableType 变化时，重置 activeTab 为对应的第一个 tab key
@@ -76,31 +78,32 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
 
       const resp = await outerClient.feishuBatchCreateUAsset({ items, source: { platform: SourcePlatform.FEISHU_PLATFORM, tableId: state.selectionInfo.tableId || '', tableToken: state.tableToken || '' } });
       if (resp.succItems.length > 0) {
-        message.success(`批量提交 ${resp.succItems.length} 个资产成功`);
+        message.success(t('operation.submitAssetsSuccess', { count: resp.succItems.length }));
         // 更新 selectedFiles 中的结果
       }
       if (resp.failedItems.length > 0) {
-        message.error(`部分资产提交失败: ${resp.failedItems.map(item => item.reason).join(', ')}`);
+        message.error(t('operation.submitAssetsPartialFailed', { reason: resp.failedItems.map(item => item.reason).join(', ') }));
       }
 
       const removeList = results.filter(item => resp.succItems.some(succItem => succItem.item?.mediaId.value === item.result?.id)).map(item => item.tmpId || '');
-
-      console.log('removeList', resp.succItems, removeList);
-      return removeList;
+      return {
+        removeList,
+        traceId: resp.trace?.traceId || '',
+      };
     } catch (error) {
-      message.error(`提交失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      message.error(t('operation.submitFailed', { error: error instanceof Error ? error.message : 'Unknown error' }));
     }
-  }, [state.selectionInfo.tableId, state.tableToken]);
+  }, [state.selectionInfo.tableId, state.tableToken, t]);
 
   // 批量上传 Prompt 回调
   const onSubmitBatchPrompt = useCallback(async () => {
     try {
       await outerClient.feishuSplitShot({});
-      message.success('批量 Prompt 提交成功，正在处理中，需要大约 30s 能看到结果');
+      message.success(t('operation.promptSubmitSuccess'));
     } catch (error) {
-      message.error(`提交失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      message.error(t('operation.submitFailed', { error: error instanceof Error ? error.message : 'Unknown error' }));
     }
-  }, []);
+  }, [t]);
 
   // Token 未配置时的提示
   if (disabled) {
@@ -109,14 +112,14 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
         title={
           <Space>
             <AppstoreOutlined />
-            <span>操作区</span>
+            <span>{t('app.operationArea')}</span>
           </Space>
         }
         size="small"
       >
         <Alert
-          message="请先在配置区配置 Token"
-          description="配置 Token 后才能使用操作区功能"
+          message={t('operation.pleaseConfigureToken')}
+          description={t('operation.configureTokenToUse')}
           type="warning"
           showIcon
         />
@@ -131,20 +134,20 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
         title={
           <Space>
             <AppstoreOutlined />
-            <span>操作区</span>
+            <span>{t('app.operationArea')}</span>
           </Space>
         }
         size="small"
       >
         <div style={{ textAlign: 'center', padding: 24 }}>
-          <Spin tip="正在识别表类型..." />
+          <Spin tip={t('operation.identifyingTableType')} />
         </div>
       </Card>
     );
   }
 
   // 表类型标签
-  const typeLabel = getTableTypeLabel(tableType);
+  const typeLabel = t(getTableTypeLabelKey(tableType));
   const typeColor = getTableTypeColor(tableType);
 
   // 未匹配表类型
@@ -154,22 +157,22 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
         title={
           <Space>
             <AppstoreOutlined />
-            <span>操作区</span>
+            <span>{t('app.operationArea')}</span>
             <Tag color={typeColor}>{typeLabel}</Tag>
           </Space>
         }
         size="small"
       >
         <Alert
-          message="当前数据表不是资产表或生产表"
+          message={t('operation.unsupportedTable')}
           description={
             <Space direction="vertical">
-              <Text>请切换到包含以下字段的表：</Text>
+              <Text>{t('operation.switchToTable')}</Text>
               <Text type="secondary">
-                · 资产表：包含 {ASSET_TABLE_FIELDS.join(', ')} 等资产类字段
+                {t('operation.assetTableContains', { fields: ASSET_TABLE_FIELDS.join(', ') })}
               </Text>
               <Text type="secondary">
-                · 生产表：包含 {PRODUCTION_TABLE_FIELDS.join(', ')} 等生产类字段
+                {t('operation.productionTableContains', { fields: PRODUCTION_TABLE_FIELDS.join(', ') })}
               </Text>
             </Space>
           }
@@ -185,11 +188,11 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
   const assetTabs = [
     {
       key: 'upload-asset',
-      label: '批量处理',
+      label: t('operation.batchProcess'),
       children: (
         <BatchUploadPanel
           accept={['png', 'jpg', 'jpeg']}
-          title="批量上传资产"
+          title={t('operation.batchProcess')}
           disabled={disabled}
           onSubmit={onSubmitBatchAssets}
         />
@@ -201,9 +204,9 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
   const productionTabs = [
     {
       key: 'upload-prompt',
-      label: '单个处理',
+      label: t('operation.singleProcess'),
       children: (
-        <Empty description="开发中，敬请期待" />
+        <Empty description={t('operation.inDevelopment')} />
         // <CellOperations
         //   disabled={disabled}
         // />
@@ -211,8 +214,8 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
     },
     {
       key: 'batch-generate',
-      label: '批量处理',
-      children: <Empty description="开发中，敬请期待" />
+      label: t('operation.batchProcess'),
+      children: <Empty description={t('operation.inDevelopment')} />
     },
   ];
 
@@ -224,7 +227,7 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
       title={
         <Space>
           <AppstoreOutlined />
-          <span>操作区</span>
+          <span>{t('app.operationArea')}</span>
           <Tag color={typeColor}>{typeLabel}</Tag>
         </Space>
       }

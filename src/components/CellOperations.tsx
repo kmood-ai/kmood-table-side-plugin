@@ -23,6 +23,7 @@ import { useSelection } from '../hooks';
 import type { FeishuShotifyReq } from '../../generated/shotify/outer_pb';
 import type { PartialMessage } from '@bufbuild/protobuf';
 import { formatCellValue } from '../utils/table';
+import { useI18n } from '../i18n';
 
 const { Text, Paragraph } = Typography;
 
@@ -38,6 +39,7 @@ interface TaskStatus {
 }
 
 export default function CellOperations({ disabled }: CellOperationsProps) {
+  const { t } = useI18n();
   const [taskStatus, setTaskStatus] = useState<TaskStatus>({ status: 'idle' });
   const { state: selectionState, refresh } = useSelection();
   const cellInfo = selectionState.cellValue;
@@ -45,11 +47,11 @@ export default function CellOperations({ disabled }: CellOperationsProps) {
   // 提交提取任务
   const handleSubmitExtract = useCallback(async () => {
     if (!cellInfo) {
-      message.warning('请先选中一个单元格');
+      message.warning(t('cell.selectCellFirst'));
       return;
     }
 
-    setTaskStatus({ status: 'loading', message: '正在提交提取任务...' });
+    setTaskStatus({ status: 'loading', message: t('cell.submittingTask') });
 
     try {
       // 根据单元格类型决定提取方式
@@ -73,16 +75,16 @@ export default function CellOperations({ disabled }: CellOperationsProps) {
         traceId: resp.traceId,
       });
 
-      message.success('提取任务提交成功！');
+      message.success(t('cell.submitSuccess'));
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : '未知错误';
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       setTaskStatus({
         status: 'error',
         message: `提交失败: ${errorMsg}`,
       });
-      message.error(`提取任务提交失败: ${errorMsg}`);
+      message.error(t('operation.submitFailed', { error: errorMsg }));
     }
-  }, [cellInfo]);
+  }, [cellInfo, t]);
 
   // 重置任务状态
   const handleResetTask = useCallback(() => {
@@ -97,17 +99,17 @@ export default function CellOperations({ disabled }: CellOperationsProps) {
       loading: {
         icon: <LoadingOutlined spin style={{ color: '#1890ff' }} />,
         color: 'processing' as const,
-        text: '处理中',
+        text: t('cell.processing'),
       },
       success: {
         icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
         color: 'success' as const,
-        text: '已提交',
+        text: t('cell.submitted'),
       },
       error: {
         icon: <CloseCircleOutlined style={{ color: '#ff4d4f' }} />,
         color: 'error' as const,
-        text: '失败',
+        text: t('cell.failed'),
       },
     };
 
@@ -126,7 +128,7 @@ export default function CellOperations({ disabled }: CellOperationsProps) {
                 icon={<ReloadOutlined />}
                 onClick={handleResetTask}
               >
-                重置
+                {t('cell.reset')}
               </Button>
             )}
           </Space>
@@ -148,7 +150,7 @@ export default function CellOperations({ disabled }: CellOperationsProps) {
   // 面板内容
   const panelContent = disabled ? (
     <Alert
-      message="请先在配置区配置 Token"
+        message={t('operation.pleaseConfigureToken')}
       type="warning"
       showIcon
       style={{ margin: 0 }}
@@ -163,25 +165,25 @@ export default function CellOperations({ disabled }: CellOperationsProps) {
           icon={<ReloadOutlined />}
           onClick={refresh}
         >
-          刷新
+          {t('cell.refresh')}
         </Button>
       </Space>
 
       {/* 选中单元格信息 */}
       {cellInfo ? (
-        <Card size="small" title="选中单元格">
+        <Card size="small" title={t('cell.selectedCell')}>
           <Descriptions column={1} size="small">
-            <Descriptions.Item label="数据表">
+            <Descriptions.Item label={t('cell.table')}>
               <Text code>{selectionState.tableName}</Text>
             </Descriptions.Item>
-            <Descriptions.Item label="字段">
+            <Descriptions.Item label={t('cell.field')}>
               <Space>
                 <Text code>{selectionState.fieldName}</Text>
               </Space>
             </Descriptions.Item>
-            <Descriptions.Item label="内容">
+            <Descriptions.Item label={t('cell.content')}>
               <Paragraph
-                ellipsis={{ rows: 3, expandable: true, symbol: '展开' }}
+                ellipsis={{ rows: 3, expandable: true, symbol: t('cell.expand') }}
                 style={{ marginBottom: 0, maxWidth: 250 }}
               >
                 {formatCellValue(cellInfo)}
@@ -191,8 +193,8 @@ export default function CellOperations({ disabled }: CellOperationsProps) {
         </Card>
       ) : (
         <Alert
-          message="请在表格中选中一个单元格"
-          description="选中单元格后，可以提取其中的内容进行处理"
+          message={t('cell.selectCellInTable')}
+          description={t('cell.selectCellDesc')}
           type="info"
           showIcon
         />
@@ -207,7 +209,7 @@ export default function CellOperations({ disabled }: CellOperationsProps) {
         onClick={handleSubmitExtract}
         block
       >
-        提交提取任务
+        {t('cell.submitTask')}
       </Button>
 
       {/* 任务状态展示 */}
@@ -221,10 +223,10 @@ export default function CellOperations({ disabled }: CellOperationsProps) {
       label: (
         <Space>
           <AimOutlined />
-          <span>提取设定</span>
+          <span>{t('cell.extractSetting')}</span>
           {cellInfo && !disabled && (
             <Tag color="blue" style={{ marginLeft: 8 }}>
-              已选中
+              {t('cell.selected')}
             </Tag>
           )}
         </Space>

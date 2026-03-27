@@ -18,6 +18,7 @@ import {
   LoadingOutlined,
 } from '@ant-design/icons';
 import { outerClient } from '../services';
+import { useI18n } from '../i18n';
 
 const { Text } = Typography;
 
@@ -51,6 +52,7 @@ interface BatchStatus {
  * - 展示提交结果
  */
 export default function BatchGeneration({ disabled }: BatchGenerationProps) {
+  const { t } = useI18n();
   const [batchStatus, setBatchStatus] = useState<BatchStatus>({
     status: 'idle',
     results: [],
@@ -80,7 +82,7 @@ export default function BatchGeneration({ disabled }: BatchGenerationProps) {
         rowId: index + 1,
         taskId: item.taskId || undefined,
         status: item.taskId ? 'success' : 'error',
-        message: item.taskId ? '任务已提交' : (item.reason || '提交失败'),
+        message: item.taskId ? t('batchGen.taskSubmitted') : (item.reason || t('operation.submitFailed', { error: 'unknown' })),
         traceId: item.traceId || undefined,
       }));
 
@@ -96,14 +98,14 @@ export default function BatchGeneration({ disabled }: BatchGenerationProps) {
       });
 
       if (successCount > 0) {
-        message.success(`批量生成任务提交成功！成功 ${successCount} 个`);
+        message.success(t('batchGen.submitSuccessToast', { count: successCount }));
       }
       if (errorCount > 0) {
-        message.warning(`有 ${errorCount} 个任务提交失败`);
+        message.warning(t('batchGen.partialFailedToast', { count: errorCount }));
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : '未知错误';
-      message.error(`批量生成任务提交失败: ${errorMsg}`);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      message.error(t('batchGen.submitFailed', { error: errorMsg }));
       setBatchStatus({
         status: 'completed',
         results: [{
@@ -116,7 +118,7 @@ export default function BatchGeneration({ disabled }: BatchGenerationProps) {
         errorCount: 1,
       });
     }
-  }, []);
+  }, [t]);
 
   /**
    * 重置状态
@@ -134,21 +136,21 @@ export default function BatchGeneration({ disabled }: BatchGenerationProps) {
   // 结果表格列定义
   const columns = [
     {
-      title: '行号',
+      title: t('batchGen.rowId'),
       dataIndex: 'rowId',
       key: 'rowId',
       width: 60,
     },
     {
-      title: '状态',
+      title: t('batchGen.status'),
       dataIndex: 'status',
       key: 'status',
       width: 80,
       render: (status: string) => {
         const config = {
-          pending: { icon: <LoadingOutlined spin />, color: 'processing', text: '处理中' },
-          success: { icon: <CheckCircleOutlined />, color: 'success', text: '成功' },
-          error: { icon: <CloseCircleOutlined />, color: 'error', text: '失败' },
+          pending: { icon: <LoadingOutlined spin />, color: 'processing', text: t('cell.processing') },
+          success: { icon: <CheckCircleOutlined />, color: 'success', text: t('batchGen.success') },
+          error: { icon: <CloseCircleOutlined />, color: 'error', text: t('batchGen.fail') },
         };
         const c = config[status as keyof typeof config] || config.error;
         return <Tag icon={c.icon} color={c.color}>{c.text}</Tag>;
@@ -162,7 +164,7 @@ export default function BatchGeneration({ disabled }: BatchGenerationProps) {
       render: (taskId?: string) => taskId ? <Text code copyable={{ text: taskId }}>{taskId}</Text> : '-',
     },
     {
-      title: '消息',
+      title: t('batchGen.message'),
       dataIndex: 'message',
       key: 'message',
       ellipsis: true,
@@ -172,7 +174,7 @@ export default function BatchGeneration({ disabled }: BatchGenerationProps) {
   if (disabled) {
     return (
       <Alert
-        message="请先在配置区配置 Token"
+        message={t('operation.pleaseConfigureToken')}
         type="warning"
         showIcon
       />
@@ -183,8 +185,8 @@ export default function BatchGeneration({ disabled }: BatchGenerationProps) {
     <Space direction="vertical" style={{ width: '100%' }} size={12}>
       {/* 操作说明 */}
       <Alert
-        message="批量生成功能"
-        description="点击下方按钮，将读取当前生产表的数据并批量提交视频生成任务。"
+        message={t('batchGen.batchFeature')}
+        description={t('batchGen.batchFeatureDesc')}
         type="info"
         showIcon
       />
@@ -197,21 +199,21 @@ export default function BatchGeneration({ disabled }: BatchGenerationProps) {
         onClick={handleSubmitBatch}
         block
       >
-        提交批量生成任务
+        {t('batchGen.submitBatchTask')}
       </Button>
 
       {/* 结果统计 */}
       {batchStatus.status === 'completed' && batchStatus.totalCount > 0 && (
-        <Card size="small" title="提交结果">
+        <Card size="small" title={t('batchGen.submitResult')}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Descriptions size="small" column={3}>
-              <Descriptions.Item label="总数">
+              <Descriptions.Item label={t('batchGen.total')}>
                 <Text strong>{batchStatus.totalCount}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="成功">
+              <Descriptions.Item label={t('batchGen.success')}>
                 <Text type="success" strong>{batchStatus.successCount}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="失败">
+              <Descriptions.Item label={t('batchGen.fail')}>
                 <Text type="danger" strong>{batchStatus.errorCount}</Text>
               </Descriptions.Item>
             </Descriptions>
@@ -230,7 +232,7 @@ export default function BatchGeneration({ disabled }: BatchGenerationProps) {
               icon={<ReloadOutlined />}
               onClick={handleReset}
             >
-              重置
+              {t('cell.reset')}
             </Button>
           </Space>
         </Card>
@@ -239,13 +241,13 @@ export default function BatchGeneration({ disabled }: BatchGenerationProps) {
       {/* 错误提示（无结果时） */}
       {batchStatus.status === 'completed' && batchStatus.totalCount === 0 && batchStatus.errorCount > 0 && (
         <Alert
-          message="提交失败"
-          description={batchStatus.results[0]?.message || '未知错误'}
+          message={t('operation.submitFailed', { error: '' })}
+          description={batchStatus.results[0]?.message || 'Unknown error'}
           type="error"
           showIcon
           action={
             <Button size="small" onClick={handleReset}>
-              重试
+              {t('batchGen.retry')}
             </Button>
           }
         />

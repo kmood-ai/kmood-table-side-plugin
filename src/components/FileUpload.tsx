@@ -22,6 +22,7 @@ import {
   EditOutlined,
 } from '@ant-design/icons';
 import { customUploadFiles, UploadType, type UploadResult } from '../services/uploadService';
+import { useI18n } from '../i18n';
 
 const { Text, Paragraph } = Typography;
 
@@ -36,6 +37,8 @@ const ACCEPTED_TYPES = [
   '.xlsx',
   '.xls',
 ].join(',');
+
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 export interface SelectedFile {
   tmpId?: string;
@@ -69,30 +72,30 @@ function getFileIcon(filename: string) {
 /**
  * 根据状态返回状态标签
  */
-function getStatusTag(status: SelectedFile['status']) {
+function getStatusTag(status: SelectedFile['status'], t: ReturnType<typeof useI18n>['t']) {
   switch (status) {
     case 'pending':
       return (
         <Tag icon={<ClockCircleOutlined />} color="default">
-          待上传
+          {t('file.statusPending')}
         </Tag>
       );
     case 'uploading':
       return (
         <Tag icon={<LoadingOutlined spin />} color="processing">
-          上传中
+          {t('file.statusUploading')}
         </Tag>
       );
     case 'success':
       return (
         <Tag icon={<CheckCircleOutlined />} color="success">
-          已上传
+          {t('file.statusUploaded')}
         </Tag>
       );
     case 'error':
       return (
         <Tag icon={<CloseCircleOutlined />} color="error">
-          上传失败
+          {t('file.statusFailed')}
         </Tag>
       );
     default:
@@ -142,6 +145,7 @@ interface FileUploadProps {
 }
 
 const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(function FileUpload({ disabled = false, accept, onUploadChange }, ref) {
+  const { t } = useI18n();
   // 使用传入的 accept 或默认类型
   const acceptTypes = accept?.join(',') || ACCEPTED_TYPES;
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
@@ -225,16 +229,16 @@ const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(function FileUploa
         updated[index] = { ...updated[index], status: 'success', result: fileInfo };
         return updated;
       });
-      message.success(`${file.name} 上传成功`);
+      message.success(t('file.uploadSuccess', { name: file.name }));
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : '上传失败';
+      const errMsg = err instanceof Error ? err.message : t('file.statusFailed');
       updateSelectedFiles((prev) => {
         const updated = [...prev];
         const index = updated.findIndex(item => item.tmpId === tmpId);
         updated[index] = { ...updated[index], status: 'error', error: errMsg };
         return updated;
       });
-      message.error(`${file.name} 上传失败: ${errMsg}`);
+      message.error(t('file.uploadFailed', { name: file.name, error: errMsg }));
     }
   };
 
@@ -267,7 +271,17 @@ const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(function FileUploa
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    addFilesAndUpload(Array.from(files));
+    const validFiles = Array.from(files).filter((file) => {
+      if (file.size > MAX_FILE_SIZE) {
+        message.error(t('file.fileTooLarge', { name: file.name }));
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length > 0) {
+      addFilesAndUpload(validFiles);
+    }
     // 重置 input 以便重复选同一文件
     event.target.value = '';
   };
@@ -295,8 +309,8 @@ const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(function FileUploa
       {/* 统计标签 */}
       {selectedFiles.length > 0 && (
         <Space style={{ marginBottom: 8 }}>
-          {uploadingCount > 0 && <Tag color="blue">{uploadingCount} 上传中</Tag>}
-          {successCount > 0 && <Tag color="green">{successCount} 已上传</Tag>}
+          {uploadingCount > 0 && <Tag color="blue">{uploadingCount} {t('file.statusUploading')}</Tag>}
+          {successCount > 0 && <Tag color="green">{successCount} {t('file.statusUploaded')}</Tag>}
         </Space>
       )}
 
@@ -307,6 +321,10 @@ const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(function FileUploa
         showUploadList={false}
         disabled={disabled}
         beforeUpload={(file) => {
+          if (file.size > MAX_FILE_SIZE) {
+            message.error(t('file.fileTooLarge', { name: file.name }));
+            return Upload.LIST_IGNORE;
+          }
           // 自动上传
           addFilesAndUpload([file]);
           return false; // 阻止默认上传行为
@@ -316,9 +334,11 @@ const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(function FileUploa
         <p className="ant-upload-drag-icon">
           <UploadOutlined style={{ fontSize: 36, color: disabled ? '#d9d9d9' : '#1890ff' }} />
         </p>
-        <p className="ant-upload-text">点击或拖拽文件到此区域（自动上传）</p>
+        <p className="ant-upload-text">{t('file.draggerText')}</p>
         <p className="ant-upload-hint">
-          支持 {accept ? accept.map(ext => ext.replace('.', '')).join('、') : 'txt、csv、json、xml、md、log、xlsx、xls'} 格式，单个文件建议不超过 2MB
+          {t('file.draggerHint', {
+            types: accept ? accept.map(ext => ext.replace('.', '')).join(', ') : 'txt, csv, json, xml, md, log, xlsx, xls',
+          })}
         </p>
       </Upload.Dragger>
 
@@ -350,7 +370,7 @@ const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(function FileUploa
                     onClick={() => handleRemoveFile(index)}
                   />
                 ),
-                getStatusTag(item.status),
+                getStatusTag(item.status, t),
               ].filter(Boolean)}
             >
               <List.Item.Meta
@@ -392,15 +412,7 @@ const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(function FileUploa
                   )
                 }
                 description={
-                  item.status === 'success' && item.result ? (
-                    <Paragraph
-                      copyable
-                      ellipsis={{ rows: 1 }}
-                      style={{ fontSize: 12, marginBottom: 0 }}
-                    >
-                      {item.result.url || item.result.id}
-                    </Paragraph>
-                  ) : item.status === 'error' ? (
+                  item.status === 'error' ? (
                     <Text type="danger" style={{ fontSize: 12 }}>
                       {item.error}
                     </Text>
@@ -409,15 +421,6 @@ const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(function FileUploa
               />
             </List.Item>
           )}
-        />
-      )}
-
-      {selectedFiles.length === 0 && !disabled && (
-        <Alert
-          message="拖拽或点击选择文件，将自动上传到远端服务"
-          type="info"
-          showIcon
-          style={{ marginTop: 8 }}
         />
       )}
     </div>

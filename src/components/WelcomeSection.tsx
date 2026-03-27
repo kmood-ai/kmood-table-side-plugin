@@ -5,6 +5,7 @@ import { useSelection } from '../hooks';
 import { bitable } from '@lark-base-open/js-sdk';
 import { getTokenByBaseId } from '../services/tokenService';
 import { TOKEN_STORAGE_KEY } from '../constant';
+import { useI18n } from '../i18n';
 
 
 const { Title, Text } = Typography;
@@ -18,16 +19,16 @@ interface WelcomeSectionProps {
 /**
  * 根据当前时间返回问候语
  */
-function getGreeting(): string {
+function getGreeting(t: ReturnType<typeof useI18n>['t']): string {
   const hour = new Date().getHours();
   if (hour >= 5 && hour < 12) {
-    return '早上好';
+    return t('welcome.goodMorning');
   } else if (hour >= 12 && hour < 14) {
-    return '中午好';
+    return t('welcome.goodNoon');
   } else if (hour >= 14 && hour < 18) {
-    return '下午好';
+    return t('welcome.goodAfternoon');
   } else {
-    return '晚上好';
+    return t('welcome.goodEvening');
   }
 }
 
@@ -45,6 +46,7 @@ function maskToken(token: string): string {
  * 合并了原配置区的 Token 配置功能
  */
 function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
+  const { t } = useI18n();
   const [userName] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -61,7 +63,7 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
   const { selectionInfo, tableName, tableToken, viewName, loading, } = state;
   const baseId = selectionInfo.baseId;
 
-  const greeting = getGreeting();
+  const greeting = getGreeting(t);
   const isConfigured = !!token;
 
   // 获取飞书用户 ID
@@ -69,16 +71,16 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
     bitable.bridge.getUserId().then((id) => {
       if (id) setUserId(id);
     }).catch((err) => {
-      console.error('获取用户 ID 失败:', err);
+      console.error(t('welcome.fetchUserIdFailed'), err);
     });
-  }, []);
+  }, [t]);
 
   /**
    * 从后端映射表查询 Token
    */
   const fetchTokenFromMapping = useCallback(async (currentBaseId: string) => {
     setTokenLoading(true);
-    setTokenLoadingTip('正在从映射表获取 Token...');
+    setTokenLoadingTip(t('welcome.loadingTokenFromMapping'));
 
     try {
       const result = await getTokenByBaseId(currentBaseId);
@@ -90,13 +92,13 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
         onTokenChange(null);
       }
     } catch (error) {
-      console.error('从映射表获取 Token 失败:', error);
+      console.error(t('welcome.fetchTokenFailed'), error);
       onTokenChange(null);
     } finally {
       setTokenLoading(false);
       setTokenLoadingTip('');
     }
-  }, [onTokenChange]);
+  }, [onTokenChange, t]);
 
   // 初始化：从 localStorage 读取 token，若无则查询映射表
   useEffect(() => {
@@ -115,12 +117,12 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
   const handleSaveToken = async () => {
     const trimmed = inputValue.trim();
     if (!trimmed) {
-      message.warning('Token 不能为空');
+      message.warning(t('welcome.tokenEmpty'));
       return;
     }
 
     setTokenLoading(true);
-    setTokenLoadingTip('正在保存...');
+    setTokenLoadingTip(t('welcome.saving'));
 
     try {
       localStorage.setItem(TOKEN_STORAGE_KEY, trimmed);
@@ -129,7 +131,7 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
       setEditing(false);
       onTokenChange(trimmed);
     } catch (error) {
-      message.error(`保存失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      message.error(t('welcome.saveFailed', { error: error instanceof Error ? error.message : 'Unknown error' }));
     } finally {
       setTokenLoading(false);
       setTokenLoadingTip('');
@@ -143,7 +145,7 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
     setInputValue('');
     setEditing(false);
     onTokenChange(null);
-    message.info('Token 已清除');
+    message.info(t('welcome.tokenCleared'));
   };
 
   // 进入编辑模式
@@ -165,14 +167,14 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
       setCopiedId(key);
       setTimeout(() => setCopiedId(null), 1500);
     } catch (error) {
-      console.error('复制失败:', error);
+      console.error(t('welcome.copyFailed'), error);
     }
-  }, []);
+  }, [t]);
 
   /** 渲染 ID 标签 */
   const renderIdTag = (id: string | null, label: string, key: string) => {
     if (!id) {
-      return <Text type="secondary">未选中</Text>;
+      return <Text type="secondary">{t('welcome.unselected')}</Text>;
     }
     const isCopied = copiedId === key;
 
@@ -192,7 +194,7 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
             fontSize: 12,
             transition: 'color 0.2s',
           }}
-          title={isCopied ? '已复制' : `复制 ${label} ID`}
+          title={isCopied ? t('welcome.copied') : t('welcome.copyId', { label })}
         >
           {isCopied ? <CheckOutlined /> : <CopyOutlined />}
         </span> : null}
@@ -207,11 +209,11 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
     <div style={{ marginTop: 16, padding: '12px 16px', background: '#fafafa', borderRadius: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <KeyOutlined style={{ color: '#1677ff' }} />
-        <Text strong style={{ fontSize: 13 }}>Token 配置</Text>
+        <Text strong style={{ fontSize: 13 }}>{t('welcome.tokenConfig')}</Text>
         {tokenLoading && <SyncOutlined spin style={{ color: '#1890ff' }} />}
         {isConfigured && !editing && !tokenLoading && (
           <Tag icon={<CheckCircleOutlined />} color="success" style={{ marginLeft: 4 }}>
-            已配置
+            {t('welcome.configured')}
           </Tag>
         )}
       </div>
@@ -219,7 +221,7 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
         {showTokenInput ? (
           <Space direction="vertical" style={{ width: '100%' }} size={8}>
             <Input.Password
-              placeholder="请输入 Token"
+              placeholder={t('welcome.enterToken')}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onPressEnter={handleSaveToken}
@@ -234,11 +236,11 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
                 onClick={handleSaveToken}
                 loading={tokenLoading}
               >
-                保存
+                {t('welcome.save')}
               </Button>
               {editing && (
                 <Button size="small" onClick={handleCancelEdit} disabled={tokenLoading}>
-                  取消
+                  {t('welcome.cancel')}
                 </Button>
               )}
             </Space>
@@ -246,7 +248,7 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Space>
-              <Text type="secondary">当前 Token：</Text>
+              <Text type="secondary">{t('welcome.currentToken')}</Text>
               <Text code>{maskToken(token!)}</Text>
             </Space>
             <Space>
@@ -255,7 +257,7 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
                 icon={<EditOutlined />}
                 onClick={handleEditToken}
               >
-                修改
+                {t('welcome.edit')}
               </Button>
               <Button
                 size="small"
@@ -263,7 +265,7 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
                 icon={<DeleteOutlined />}
                 onClick={handleClearToken}
               >
-                清除
+                {t('welcome.clear')}
               </Button>
             </Space>
           </div>
@@ -291,7 +293,7 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
             children: userId ? (
               renderIdTag(userId, 'User', 'userId')
             ) : (
-              <Text type="secondary">未登录</Text>
+              <Text type="secondary">{t('welcome.notLoggedIn')}</Text>
             ),
           },
           {
@@ -328,7 +330,7 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
                 {tableName && <Text type="secondary" style={{ fontSize: 12 }}>({tableName})</Text>}
               </Space>
             ) : (
-              <Text type="secondary">未选中</Text>
+              <Text type="secondary">{t('welcome.unselected')}</Text>
             ),
           },
           {
@@ -345,7 +347,7 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
                 {viewName && <Text type="secondary" style={{ fontSize: 12 }}>({viewName})</Text>}
               </Space>
             ) : (
-              <Text type="secondary">未选中</Text>
+              <Text type="secondary">{t('welcome.unselected')}</Text>
             ),
           },
         ]}
@@ -360,7 +362,7 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
       key: 'sdk-info',
       label: (
         <Text strong style={{ fontSize: 13 }}>
-          上下文信息
+          {t('welcome.contextInfo')}
         </Text>
       ),
       children: sdkInfoPanel,
@@ -372,8 +374,8 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
       {/* Token 未配置时，在欢迎区上方显示警告 */}
       {!isConfigured && !tokenLoading && (
         <Alert
-          message="Token 未配置"
-          description="请展开下方「上下文信息」配置 Token 后，方可使用操作区功能。"
+          message={t('welcome.tokenNotConfigured')}
+          description={t('welcome.configureTokenDesc')}
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
@@ -386,7 +388,7 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
         {loading ? (
           <div style={{ textAlign: 'center', padding: 20 }}>
             <Spin size="small" />
-            <Text type="secondary" style={{ marginLeft: 8 }}>加载中...</Text>
+            <Text type="secondary" style={{ marginLeft: 8 }}>{t('welcome.loading')}</Text>
           </div>
         ) : (
           <>
@@ -397,7 +399,7 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
                   {greeting}{userName ? ',' : ''}{userName}{userName ? '!' : ''}
                 </Title>
                 <Text type="secondary" style={{ fontSize: 13 }}>
-                  欢迎使用 KMood 多维表格工具
+                  {t('welcome.subtitle')}
                 </Text>
               </div>
             </div>

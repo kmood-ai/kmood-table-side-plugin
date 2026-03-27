@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Select, message } from 'antd';
 import { bitable } from '@lark-base-open/js-sdk';
+import { useI18n } from '../i18n';
 
 interface TableOption {
   label: string;
@@ -18,8 +19,9 @@ export default function TableSelector({
   value,
   onChange,
   disabled = false,
-  placeholder = '请选择数据表',
+  placeholder,
 }: TableSelectorProps) {
+  const { t } = useI18n();
   const [options, setOptions] = useState<TableOption[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -40,7 +42,7 @@ export default function TableSelector({
       setOptions(opts);
     } catch (err) {
       console.error('获取数据表列表失败:', err);
-      message.error('获取数据表列表失败');
+      message.error(t('tableSelector.fetchFailed'));
     } finally {
       setLoading(false);
     }
@@ -55,7 +57,7 @@ export default function TableSelector({
   return (
     <Select
       style={{ width: '100%' }}
-      placeholder={placeholder}
+      placeholder={placeholder || t('tableSelector.placeholder')}
       value={value}
       onChange={onChange}
       options={options}
