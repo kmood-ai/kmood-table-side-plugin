@@ -1,13 +1,17 @@
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient, type Interceptor } from "@connectrpc/connect";
-import { BASE_URL } from "../constant.js";
-import { Outer } from "../../generated/shotify/outer_connect.js";
+import { BASE_URL, TOKEN_STORAGE_KEY } from "../constant.js";
+import { Outer } from "../../generated/ipimage/shotify/outer_connect.js";
 
 /**
  * 将字符串进行 Base64 编码
  */
 export function toBase64(str: string): string {
   return btoa(unescape(encodeURIComponent(str)));
+}
+
+export function fromBase64(str: string): string {
+  return decodeURIComponent(escape(atob(str)));
 }
 
 /**
@@ -21,7 +25,7 @@ const authInterceptor: Interceptor = (next) => async (req) => {
   // }
 
   // 从 localStorage 读取用户配置的 token
-  const token = localStorage.getItem("kmood_token");
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
   if (!token) {
     throw new Error("Token 未配置，请先在配置区设置 Token");
   }

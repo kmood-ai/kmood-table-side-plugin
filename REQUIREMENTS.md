@@ -21,18 +21,22 @@
 
 ## 2. 整体界面结构
 
-插件界面从上到下依次排列为 **三段式布局**：
+插件界面从上到下依次排列为 **两段式布局**：
 
 ```
 ┌─────────────────────────────────┐
+│  ⚠️ Token 未配置提示（条件显示）   │
+│  (仅当 Token 未配置时显示警告)    │
+├─────────────────────────────────┤
 │  ① 欢迎区                        │
-│  (时间问候语 + SDK上下文信息)      │
+│  (时间问候语 + 上下文信息折叠区)   │
+│  ┌─────────────────────────────┐│
+│  │ ▶ 上下文信息（默认收起）       ││
+│  │   · SDK 信息（Base/Table等）  ││
+│  │   · Token 配置（嵌入此处）     ││
+│  └─────────────────────────────┘│
 ├─────────────────────────────────┤
-│  ② 配置区                        │
-│  · Token 配置（本地缓存优先）      │
-│  · BaseID-Token 映射表自动同步    │
-├─────────────────────────────────┤
-│  ③ 操作区                        │
+│  ② 操作区                        │
 │  ┌─────────────────────────────┐│
 │  │ [表类型自动识别标签]           ││
 │  │  资产表 / 生产表 / 未匹配     ││
@@ -56,39 +60,44 @@
 ```
 
 > **全局约束**：
-> 1. 在配置区中 Token 未配置（本地缓存为空且映射表无记录）时，③ 操作区处于 **不可操作** 状态，需给出明确提示（如 Alert 或 disabled overlay）。
-> 2. 操作区根据当前选中表的 **字段（Field）名称** 自动判断表类型，并动态展示对应的 Tab 和功能模块。
+> 1. Token 未配置时（本地缓存为空且映射表无记录），在欢迎区 **上方** 显示 **警告提示**（Alert warning），告知用户需要配置 Token。
+> 2. Token 未配置时，② 操作区处于 **不可操作** 状态，需给出明确提示（如 Alert 或 disabled overlay）。
+> 3. 操作区根据当前选中表的 **字段（Field）名称** 自动判断表类型，并动态展示对应的 Tab 和功能模块。
+> 4. **上下文信息默认收起**，用户可点击展开查看 SDK 信息和 Token 配置。
 
 ---
 
 ## 3. 各区域详细说明
 
-### 3.0 欢迎区 ✅ 已完成
+### 3.0 欢迎区 🔄 需改造
+
+> **变更说明**：原配置区（Token 配置）已合并到欢迎区的"上下文信息"折叠面板中。
 
 #### 功能描述
 - 显示基于当前时间的问候语（早上好/中午好/下午好/晚上好）
-- 展示当前 SDK 上下文信息（Base ID、Table ID、View ID、User ID）
-- 信息展示区可折叠
+- 展示可折叠的"上下文信息"面板（**默认收起**），包含：
+  - SDK 上下文信息（Base ID、Table ID、View ID、User ID）
+  - Token 配置模块（原配置区内容）
+- 当 Token 未配置时，在欢迎区 **上方** 显示警告提示（Alert warning）
 
 #### 组件构成
 | 组件 | 说明 | 状态 |
 |---|---|---|
-| `WelcomeSection.tsx` | 欢迎区主组件 | ✅ 已实现 |
+| `WelcomeSection.tsx` | 欢迎区主组件（合并配置区） | 🔄 需改造 |
 | `Card` | 容器卡片 | ✅ |
-| `Collapse` | 可折叠的 SDK 信息面板 | ✅ |
+| `Alert` | Token 未配置时的警告提示（显示在欢迎区上方） | 🆕 需新增 |
+| `Collapse` | 可折叠的"上下文信息"面板，**默认收起** | 🔄 需改造 |
 | `Descriptions` | 展示 Base/Table/View/User ID 及名称 | ✅ |
 | `Tag` + 复制按钮 | ID 展示与复制功能 | ✅ |
+| Token 配置模块 | 内嵌的 Token 输入/展示/清除（原 TokenConfig 组件内容） | 🔄 需内嵌 |
 
 #### 数据来源
 - 使用 `useSelection` hook 获取当前选中的 Base/Table/View 信息
 - 使用 `bitable.bridge.getUserId()` 获取当前用户 ID
 - 时间问候语根据当前小时动态生成
+- Token 状态通过 props 传入（从 App.tsx 传递）
 
----
-
-### 3.1 配置区 🔄 需改造
-
-#### 功能描述
+#### Token 配置功能（原配置区）
 
 配置区实现 **Token 双层缓存机制**：
 
@@ -121,26 +130,17 @@
        ↓
      调用后端接口 getTokenByBaseId(baseId)
        ├── 返回 Token → 自动回填 localStorage，显示已配置状态
-       └── 无记录 → 显示输入框，提示用户手动输入
+       └── 无记录 → 在欢迎区上方显示警告提示，折叠面板内显示输入框
 ```
-
-#### 组件构成
-| 组件 | 说明 | 状态 |
-|---|---|---|
-| `TokenConfig.tsx` | Token 配置主组件 | ✅ 已实现，🔄 需改造 |
-| `Input.Password` | Token 输入框，支持可见性切换 | ✅ |
-| `Button`（保存） | 校验非空后将 Token 写入 localStorage + 同步到后端映射表 | 🔄 需改造 |
-| `Button`（修改） | 进入编辑模式 | ✅ |
-| `Button`（清除） | 清除 localStorage 中的 Token，重置为未配置状态 | ✅ |
-| `Tag` | 已配置状态标识 | ✅ |
-| `Spin` / 加载状态 | 正在从后端映射表查询 Token 时的加载提示 | 🆕 需新增 |
 
 #### 交互约束
 1. ✅ Token 输入不能为空字符串；保存前需做前端校验。
 2. ✅ Token 变更后，后续所有请求应使用新 Token（通过 `authInterceptor` 从 localStorage 动态读取）。
-3. ✅ 清除 Token 后，③ 操作区立即变为不可操作。
+3. ✅ 清除 Token 后，② 操作区立即变为不可操作。
 4. 🆕 插件启动时，若本地无 Token，自动触发后端映射表查询（带 loading 状态）。
 5. 🆕 保存 Token 时，同步调用后端接口写入 BaseID-Token 映射。
+6. 🆕 **上下文信息面板默认收起**（`defaultActiveKey` 为空或不设置）。
+7. 🆕 **Token 未配置时，在欢迎区上方显示 Alert 警告**，引导用户展开"上下文信息"配置 Token。
 
 #### 后端接口（待定义）
 | 接口 | 方法 | 说明 |
@@ -152,15 +152,15 @@
 
 #### 与请求层的集成
 - ✅ `services/index.ts` 中的 `authInterceptor` 从 localStorage 读取 Token 并注入 `trpc-trans-info` header。
-- 🆕 新增映射表查询/写入的 service 方法。
+- ✅ 映射表查询/写入的 service 方法。
 
 ---
 
-### 3.2 操作区 🆕 需重构
+### 3.1 操作区 🆕 需重构
 
 > **重大变更**：原「单元格操作区」和「表格操作区」合并为统一的 **操作区**，根据当前选中表的字段自动识别表类型，动态展示不同的 Tab 和功能模块。
 
-#### 3.2.1 表类型自动识别
+#### 3.1.1 表类型自动识别
 
 插件通过读取当前选中表的 **字段列表（Field List）** 来判断表类型：
 
@@ -182,7 +182,7 @@
 
 > **字段匹配规则可配置**：后续可通过配置文件或后端下发规则，避免硬编码。初期使用前端硬编码的字段名进行匹配。
 
-#### 3.2.2 Tab 布局与功能模块
+#### 3.1.2 Tab 布局与功能模块
 
 根据识别出的表类型，操作区动态展示不同的 Tab：
 
@@ -207,7 +207,7 @@
 |---|---|
 | 未匹配 | 显示 `Alert`（warning 类型），提示"当前数据表不是资产表或生产表，请切换到包含对应字段的表" |
 
-#### 3.2.3 操作区组件构成
+#### 3.1.3 操作区组件构成
 
 | 组件 | 说明 | 状态 |
 |---|---|---|
@@ -219,7 +219,7 @@
 | `BatchGeneration.tsx` | 批量生成模块（生产表专用） | 🆕 需新增 |
 | `Alert` | Token 未配置 / 未匹配表类型时的提示 | ✅ 已实现 |
 
-#### 3.2.4 批量生成模块（生产表专用）🆕
+#### 3.1.4 批量生成模块（生产表专用）🆕
 
 ##### 功能描述
 - 读取当前生产表中的数据行，批量提交视频生成任务。
@@ -254,8 +254,7 @@
 ```
 src/
   ├── components/
-  │   ├── WelcomeSection.tsx      # ✅ 欢迎区组件（问候语 + SDK 上下文信息）
-  │   ├── TokenConfig.tsx         # ✅🔄 Token 配置区组件（需增加映射表逻辑）
+  │   ├── WelcomeSection.tsx      # 🔄 欢迎区组件（合并了配置区，含问候语 + 上下文信息 + Token 配置）
   │   ├── OperationArea.tsx       # 🆕 操作区主组件（表类型识别 + Tab 容器）
   │   ├── CellOperations.tsx      # ✅ 提取设定模块
   │   ├── BatchUploadPanel.tsx    # ✅ 通用批量上传面板
@@ -270,7 +269,8 @@ src/
   │   ├── index.ts                # ✅ hooks 导出入口
   │   ├── useSelection.ts         # ✅ Selection hook（监听选中状态变化）
   │   ├── useTableOperations.ts   # ✅ 表格操作 hook（获取字段列表/表格结构）
-  │   └── useTableType.ts         # 🆕 表类型识别 hook
+  │   ├── useTableType.ts         # 🆕 表类型识别 hook
+  │   └── useToken.ts             # 🆕 Token 管理 hook（封装 localStorage + 映射表逻辑）
   │
   ├── utils/
   │   ├── index.ts                # ✅ utils 导出入口
@@ -280,8 +280,10 @@ src/
   └── services/
       ├── index.ts                # ✅ Connect RPC 服务（含 authInterceptor）
       ├── uploadService.ts        # ✅ 上传服务
-      └── tokenService.ts         # 🆕 Token 映射表服务（getTokenByBaseId / setTokenByBaseId）
+      └── tokenService.ts         # ✅ Token 映射表服务（getTokenByBaseId / setTokenByBaseId）
 ```
+
+> **注意**：原独立的 `TokenConfig.tsx` 组件已合并到 `WelcomeSection.tsx` 中，不再作为独立组件存在。
 
 ---
 
@@ -330,10 +332,9 @@ const { tableType, loading, fieldList } = useTableType();
 
 | 文件 | 当前功能 | 状态 |
 |---|---|---|
-| `src/App.tsx` | 主页面：欢迎区 + 配置区 + 操作区 三段式布局 | 🔄 需改造 |
+| `src/App.tsx` | 主页面：欢迎区 + 操作区 两段式布局 | 🔄 需改造 |
 | `src/main.tsx` | 应用入口，包裹 SelectionProvider | ✅ 已完成 |
-| `src/components/WelcomeSection.tsx` | 欢迎区组件（问候语 + SDK 上下文信息 + User ID） | ✅ 已完成 |
-| `src/components/TokenConfig.tsx` | Token 配置区组件 | ✅🔄 需增加映射表逻辑 |
+| `src/components/WelcomeSection.tsx` | 欢迎区组件（合并配置区，含问候语 + 上下文信息 + Token 配置） | 🔄 需改造 |
 | `src/components/OperationArea.tsx` | 操作区主组件（表类型识别 + Tab 容器） | 🆕 需新增 |
 | `src/components/CellOperations.tsx` | 提取设定模块 | ✅ 已完成 |
 | `src/components/BatchUploadPanel.tsx` | 通用批量上传面板组件 | ✅ 已完成 |
@@ -354,27 +355,32 @@ const { tableType, loading, fieldList } = useTableType();
 ### 改造要点
 
 #### 已完成 ✅
-1. **WelcomeSection.tsx** — 问候语 + SDK 上下文 + User ID 展示
-2. **TokenConfig.tsx** — Token 输入/展示/清除
-3. **CellOperations.tsx** — 单元格提取设定
-4. **BatchUploadPanel.tsx** — 通用批量上传面板
-5. **TableSelector.tsx** — 数据表选择器
-6. **FileUpload.tsx** — 文件上传组件
-7. **SelectionProvider + useSelection** — 全局选中状态
-8. **useTableOperations** — 表格操作能力封装
-9. **services/index.ts** — authInterceptor Token 注入
+1. **CellOperations.tsx** — 单元格提取设定
+2. **BatchUploadPanel.tsx** — 通用批量上传面板
+3. **TableSelector.tsx** — 数据表选择器
+4. **FileUpload.tsx** — 文件上传组件
+5. **SelectionProvider + useSelection** — 全局选中状态
+6. **useTableOperations** — 表格操作能力封装
+7. **services/index.ts** — authInterceptor Token 注入
+8. **tokenService.ts** — Token 映射表服务
 
 #### 需改造 🔄
-1. **App.tsx** — 从四段式改为三段式（欢迎区 + 配置区 + 操作区）
-2. **TokenConfig.tsx** — 增加 BaseID-Token 映射表的查询/写入逻辑
+1. **App.tsx** — 从三段式改为两段式（欢迎区 + 操作区），移除独立的 TokenConfig 组件
+2. **WelcomeSection.tsx** — 合并配置区功能：
+   - 将 Token 配置模块嵌入到"上下文信息"折叠面板中
+   - **上下文信息面板默认收起**
+   - 当 Token 未配置时，在欢迎区上方显示 Alert 警告
 
 #### 需新增 🆕
 1. **OperationArea.tsx** — 操作区主组件（表类型识别 + Tab 动态渲染）
 2. **BatchGeneration.tsx** — 批量生成模块（生产表专用）
 3. **useTableType.ts** — 表类型识别 hook
-4. **tableTypeRules.ts** — 字段匹配规则定义
-5. **tokenService.ts** — Token 映射表 service（后端接口待定义）
+4. **useToken.ts** — Token 管理 hook（封装 localStorage + 映射表逻辑）
+5. **tableTypeRules.ts** — 字段匹配规则定义
 6. **后端 proto** — 新增 `getTokenByBaseId` / `setTokenByBaseId` 接口定义
+
+#### 需删除 🗑️
+1. **TokenConfig.tsx** — 原独立的配置区组件，功能已合并到 WelcomeSection.tsx
 
 ---
 
@@ -485,3 +491,4 @@ const { tableType, loading, fieldList, refresh } = useTableType();
 | 2026-03-26 | 初始版本：定义配置区、批量上传资产区、批量上传 Prompt 区三段式布局需求 |
 | 2026-03-26 | 功能完成：标注所有已完成功能，更新组件构成，补充新增组件说明（欢迎区、单元格操作区、Hooks、Contexts、Utils） |
 | 2026-03-27 | **重大重构**：页面结构从四段式改为三段式（欢迎区 + 配置区 + 操作区）；配置区增加 BaseID-Token 映射表缓存机制；操作区改为根据表字段自动识别表类型（资产表/生产表/未匹配），动态展示不同 Tab 和功能模块；新增批量生成模块、useTableType hook、表类型匹配规则 |
+| 2026-03-27 | **布局精简**：页面从三段式改为两段式（欢迎区 + 操作区）；配置区合并到欢迎区的"上下文信息"折叠面板中；上下文信息默认收起；Token 未配置时在欢迎区上方显示警告提示；删除独立的 TokenConfig 组件 |

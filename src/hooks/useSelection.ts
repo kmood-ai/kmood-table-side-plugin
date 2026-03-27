@@ -15,6 +15,8 @@ export interface SelectionState {
   selectionInfo: SelectionInfo;
   /** 数据表名称 */
   tableName: string;
+  /** 数据表 Token */
+  tableToken: string;
   /** 视图名称 */
   viewName: string;
   /** 字段名称 */
@@ -34,6 +36,7 @@ type SelectionAction =
   | { type: "SET_CELL_LOADING"; payload: boolean }
   | { type: "SET_SELECTION_INFO"; payload: SelectionInfo }
   | { type: "SET_TABLE_NAME"; payload: string }
+  | { type: "SET_TABLE_TOKEN"; payload: string }
   | { type: "SET_VIEW_NAME"; payload: string }
   | { type: "SET_FIELD_NAME"; payload: string }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,6 +54,7 @@ export const initialState: SelectionState = {
     recordId: null,
   },
   tableName: "",
+  tableToken: "",
   viewName: "",
   fieldName: "",
   cellValue: null,
@@ -72,6 +76,8 @@ export function selectionReducer(
       return { ...state, selectionInfo: action.payload };
     case "SET_TABLE_NAME":
       return { ...state, tableName: action.payload };
+    case "SET_TABLE_TOKEN":
+      return { ...state, tableToken: action.payload };
     case "SET_VIEW_NAME":
       return { ...state, viewName: action.payload };
     case "SET_FIELD_NAME":

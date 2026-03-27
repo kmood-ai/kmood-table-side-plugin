@@ -22,7 +22,7 @@ import { outerClient } from '../services';
 import { useSelection } from '../hooks';
 import type { FeishuShotifyReq } from '../../generated/shotify/outer_pb';
 import type { PartialMessage } from '@bufbuild/protobuf';
-import { formatCellValue } from '../utils';
+import { formatCellValue } from '../utils/table';
 
 const { Text, Paragraph } = Typography;
 

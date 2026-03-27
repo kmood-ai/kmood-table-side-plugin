@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import type { AssetType } from "../common/types_pb.js";
 
 /**
  * @generated from enum step.ipimage.shotify.ShotInfoTaskStatus
@@ -51,6 +52,26 @@ export declare enum ShotInfoTaskStatus {
    * @generated from enum value: SHOT_INFO_STATUS_REPEATED_SUBMIT = 7;
    */
   SHOT_INFO_STATUS_REPEATED_SUBMIT = 7,
+}
+
+/**
+ * @generated from enum step.ipimage.shotify.SourcePlatform
+ */
+export declare enum SourcePlatform {
+  /**
+   * @generated from enum value: UNKOWN_PLATFORM = 0;
+   */
+  UNKOWN_PLATFORM = 0,
+
+  /**
+   * @generated from enum value: KMOOD_DASHBOARD = 1;
+   */
+  KMOOD_DASHBOARD = 1,
+
+  /**
+   * @generated from enum value: FEISHU_PLATFORM = 2;
+   */
+  FEISHU_PLATFORM = 2,
 }
 
 /**
@@ -283,6 +304,11 @@ export declare class ShotifyInfo extends Message<ShotifyInfo> {
    * @generated from field: int32 row_id = 2;
    */
   rowId: number;
+
+  /**
+   * @generated from field: string table_id = 3;
+   */
+  tableId: string;
 
   constructor(data?: PartialMessage<ShotifyInfo>);
 
@@ -750,5 +776,213 @@ export declare class FeishuSplitShotResp extends Message<FeishuSplitShotResp> {
   static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FeishuSplitShotResp;
 
   static equals(a: FeishuSplitShotResp | PlainMessage<FeishuSplitShotResp> | undefined, b: FeishuSplitShotResp | PlainMessage<FeishuSplitShotResp> | undefined): boolean;
+}
+
+/**
+ * @generated from message step.ipimage.shotify.UassetLibItem
+ */
+export declare class UassetLibItem extends Message<UassetLibItem> {
+  /**
+   * 资产类型
+   *
+   * @generated from field: step.ipimage.common.AssetType type = 1;
+   */
+  type: AssetType;
+
+  /**
+   * 父资产ID
+   *
+   * @generated from field: optional string parent_asset_id = 2;
+   */
+  parentAssetId?: string;
+
+  /**
+   * @generated from field: string name = 3;
+   */
+  name: string;
+
+  /**
+   * @generated from oneof step.ipimage.shotify.UassetLibItem.media_id
+   */
+  mediaId: {
+    /**
+     * @generated from field: string img_id = 10;
+     */
+    value: string;
+    case: "imgId";
+  } | {
+    /**
+     * @generated from field: string video_id = 11;
+     */
+    value: string;
+    case: "videoId";
+  } | { case: undefined; value?: undefined };
+
+  constructor(data?: PartialMessage<UassetLibItem>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "step.ipimage.shotify.UassetLibItem";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UassetLibItem;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UassetLibItem;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UassetLibItem;
+
+  static equals(a: UassetLibItem | PlainMessage<UassetLibItem> | undefined, b: UassetLibItem | PlainMessage<UassetLibItem> | undefined): boolean;
+}
+
+/**
+ * 创建资产请求
+ *
+ * @generated from message step.ipimage.shotify.FeishuBatchCreateUAssetReq
+ */
+export declare class FeishuBatchCreateUAssetReq extends Message<FeishuBatchCreateUAssetReq> {
+  /**
+   * 文件ID
+   *
+   * @generated from field: optional string file_id = 1;
+   */
+  fileId?: string;
+
+  /**
+   * @generated from field: repeated step.ipimage.shotify.UassetLibItem items = 2;
+   */
+  items: UassetLibItem[];
+
+  /**
+   * @generated from field: optional step.ipimage.shotify.FeishuBatchCreateUAssetReq.Source source = 3;
+   */
+  source?: FeishuBatchCreateUAssetReq_Source;
+
+  constructor(data?: PartialMessage<FeishuBatchCreateUAssetReq>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "step.ipimage.shotify.FeishuBatchCreateUAssetReq";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FeishuBatchCreateUAssetReq;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FeishuBatchCreateUAssetReq;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FeishuBatchCreateUAssetReq;
+
+  static equals(a: FeishuBatchCreateUAssetReq | PlainMessage<FeishuBatchCreateUAssetReq> | undefined, b: FeishuBatchCreateUAssetReq | PlainMessage<FeishuBatchCreateUAssetReq> | undefined): boolean;
+}
+
+/**
+ * @generated from message step.ipimage.shotify.FeishuBatchCreateUAssetReq.Source
+ */
+export declare class FeishuBatchCreateUAssetReq_Source extends Message<FeishuBatchCreateUAssetReq_Source> {
+  /**
+   * 来源平台
+   *
+   * @generated from field: step.ipimage.shotify.SourcePlatform platform = 1;
+   */
+  platform: SourcePlatform;
+
+  /**
+   * @generated from field: string table_id = 2;
+   */
+  tableId: string;
+
+  /**
+   * @generated from field: string table_token = 3;
+   */
+  tableToken: string;
+
+  constructor(data?: PartialMessage<FeishuBatchCreateUAssetReq_Source>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "step.ipimage.shotify.FeishuBatchCreateUAssetReq.Source";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FeishuBatchCreateUAssetReq_Source;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FeishuBatchCreateUAssetReq_Source;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FeishuBatchCreateUAssetReq_Source;
+
+  static equals(a: FeishuBatchCreateUAssetReq_Source | PlainMessage<FeishuBatchCreateUAssetReq_Source> | undefined, b: FeishuBatchCreateUAssetReq_Source | PlainMessage<FeishuBatchCreateUAssetReq_Source> | undefined): boolean;
+}
+
+/**
+ * 创建资产响应
+ *
+ * @generated from message step.ipimage.shotify.FeishuBatchCreateUAssetResp
+ */
+export declare class FeishuBatchCreateUAssetResp extends Message<FeishuBatchCreateUAssetResp> {
+  /**
+   * 失败的item信息
+   *
+   * @generated from field: repeated step.ipimage.shotify.FeishuBatchCreateUAssetResp.OutputUassetItem failed_items = 1;
+   */
+  failedItems: FeishuBatchCreateUAssetResp_OutputUassetItem[];
+
+  /**
+   * 成功的item信息
+   *
+   * @generated from field: repeated step.ipimage.shotify.FeishuBatchCreateUAssetResp.OutputUassetItem succ_items = 2;
+   */
+  succItems: FeishuBatchCreateUAssetResp_OutputUassetItem[];
+
+  /**
+   * @generated from field: step.ipimage.shotify.OuterTrace trace = 3;
+   */
+  trace?: OuterTrace;
+
+  constructor(data?: PartialMessage<FeishuBatchCreateUAssetResp>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "step.ipimage.shotify.FeishuBatchCreateUAssetResp";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FeishuBatchCreateUAssetResp;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FeishuBatchCreateUAssetResp;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FeishuBatchCreateUAssetResp;
+
+  static equals(a: FeishuBatchCreateUAssetResp | PlainMessage<FeishuBatchCreateUAssetResp> | undefined, b: FeishuBatchCreateUAssetResp | PlainMessage<FeishuBatchCreateUAssetResp> | undefined): boolean;
+}
+
+/**
+ * @generated from message step.ipimage.shotify.FeishuBatchCreateUAssetResp.OutputUassetItem
+ */
+export declare class FeishuBatchCreateUAssetResp_OutputUassetItem extends Message<FeishuBatchCreateUAssetResp_OutputUassetItem> {
+  /**
+   * @generated from field: optional string asset_id = 1;
+   */
+  assetId?: string;
+
+  /**
+   * @generated from field: int32 index = 2;
+   */
+  index: number;
+
+  /**
+   * @generated from field: string reason = 3;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: step.ipimage.shotify.UassetLibItem item = 4;
+   */
+  item?: UassetLibItem;
+
+  constructor(data?: PartialMessage<FeishuBatchCreateUAssetResp_OutputUassetItem>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "step.ipimage.shotify.FeishuBatchCreateUAssetResp.OutputUassetItem";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FeishuBatchCreateUAssetResp_OutputUassetItem;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FeishuBatchCreateUAssetResp_OutputUassetItem;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FeishuBatchCreateUAssetResp_OutputUassetItem;
+
+  static equals(a: FeishuBatchCreateUAssetResp_OutputUassetItem | PlainMessage<FeishuBatchCreateUAssetResp_OutputUassetItem> | undefined, b: FeishuBatchCreateUAssetResp_OutputUassetItem | PlainMessage<FeishuBatchCreateUAssetResp_OutputUassetItem> | undefined): boolean;
 }
 

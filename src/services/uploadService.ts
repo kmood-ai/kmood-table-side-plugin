@@ -1,5 +1,5 @@
 import { FileInfo, UploadType } from "../../generated/upload/common_pb.js";
-import { BASE_URL } from "../constant.js";
+import { BASE_URL, TOKEN_STORAGE_KEY } from "../constant.js";
 import type { UploadFilesResp } from "../../generated/upload/upload_pb.js";
 import { toBase64 } from "./index.js";
 
@@ -48,7 +48,7 @@ export async function customUploadFiles(
   }
 
   // 从 localStorage 读取用户配置的 token
-  const token = localStorage.getItem("kmood_token");
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
   if (!token) {
     throw new Error("Token 未配置，请先在配置区设置 Token");
   }

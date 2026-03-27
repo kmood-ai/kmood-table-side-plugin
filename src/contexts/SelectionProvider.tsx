@@ -3,6 +3,17 @@ import type { SelectionInfo } from "../hooks";
 import { selectionReducer, initialState, type SelectionContextType, SelectionContext } from "../hooks/useSelection";
 import { bitable } from '@lark-base-open/js-sdk';
 
+/** 从 URL 中解析 table_token */
+function parseTableTokenFromUrl(url: string): string {
+    try {
+        const pathname = url || window.location.pathname;
+        // 匹配 /wiki/{token} 或 /base/{token}
+        const match = pathname.match(/\/(wiki|base)\/([^/?]+)/);
+        return match ? match[2] : "";
+    } catch {
+        return "";
+    }
+}
 
 /** Provider Props */
 interface SelectionProviderProps {
@@ -65,6 +76,21 @@ export function SelectionProvider({ children }: SelectionProviderProps) {
         }
     }, []);
 
+
+    const updateTableToken = useCallback(async ({ tableId, viewId, recordId, fieldId }: { tableId: string | null, viewId: string | null, recordId: string | null, fieldId: string | null }) => {
+        const selection = await bitable.base.getSelection();
+        const url = await bitable.bridge.getBitableUrl({
+            tableId: tableId || selection.tableId,
+            viewId: viewId || selection.viewId,
+            recordId: recordId || selection.recordId,
+            fieldId: fieldId || selection.fieldId,
+        });
+
+        // 从 URL 解析 table_token 并写入 context
+        const tableToken = parseTableTokenFromUrl(url);
+        dispatch({ type: 'SET_TABLE_TOKEN', payload: tableToken });
+    }, []);
+
     /** 获取选中信息并更新状态 */
     const fetchSelectionInfo = useCallback(async () => {
         try {
@@ -82,6 +108,7 @@ export function SelectionProvider({ children }: SelectionProviderProps) {
             await Promise.all([
                 fetchNames(selection.tableId, selection.viewId),
                 fetchCellValue(selection.tableId, selection.fieldId, selection.recordId),
+                updateTableToken({ tableId: selection.tableId, viewId: selection.viewId, recordId: selection.recordId, fieldId: selection.fieldId }),
             ]);
         } catch (error) {
             console.error('获取 selection 信息失败:', error);
@@ -126,6 +153,7 @@ export function SelectionProvider({ children }: SelectionProviderProps) {
                 await Promise.all([
                     fetchNames(data.tableId, data.viewId),
                     fetchCellValue(data.tableId, data.fieldId, data.recordId),
+                    updateTableToken({ tableId: data.tableId, viewId: data.viewId, recordId: data.recordId, fieldId: data.fieldId }),
                 ]);
             })();
         });

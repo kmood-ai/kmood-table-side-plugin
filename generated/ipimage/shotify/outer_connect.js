@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { FeishuCallbackReq, FeishuCallbackResp, FeishuCreateUassetReq, FeishuCreateUassetResp, FeishuDelUassetReq, FeishuDelUassetResp, FeishuShotifyReq, FeishuShotifyRsp, FeishuSplitShotReq, FeishuSplitShotResp } from "./outer_pb.js";
+import { FeishuBatchCreateUAssetReq, FeishuBatchCreateUAssetResp, FeishuCallbackReq, FeishuCallbackResp, FeishuCreateUassetReq, FeishuCreateUassetResp, FeishuDelUassetReq, FeishuDelUassetResp, FeishuShotifyReq, FeishuShotifyRsp, FeishuSplitShotReq, FeishuSplitShotResp } from "./outer_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -55,6 +55,15 @@ export const Outer = {
       name: "FeishuSplitShot",
       I: FeishuSplitShotReq,
       O: FeishuSplitShotResp,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc step.ipimage.shotify.Outer.FeishuBatchCreateUAsset
+     */
+    feishuBatchCreateUAsset: {
+      name: "FeishuBatchCreateUAsset",
+      I: FeishuBatchCreateUAssetReq,
+      O: FeishuBatchCreateUAssetResp,
       kind: MethodKind.Unary,
     },
   }

@@ -4,6 +4,7 @@
 // @ts-nocheck
 
 import { proto3 } from "@bufbuild/protobuf";
+import { AssetType } from "../common/types_pb.js";
 
 /**
  * @generated from enum step.ipimage.shotify.ShotInfoTaskStatus
@@ -19,6 +20,18 @@ export const ShotInfoTaskStatus = /*@__PURE__*/ proto3.makeEnum(
     {no: 5, name: "SHOT_INFO_STATUS_SUBMIT_FAILED"},
     {no: 6, name: "SHOT_INFO_STATUS_GEN_FAILED"},
     {no: 7, name: "SHOT_INFO_STATUS_REPEATED_SUBMIT"},
+  ],
+);
+
+/**
+ * @generated from enum step.ipimage.shotify.SourcePlatform
+ */
+export const SourcePlatform = /*@__PURE__*/ proto3.makeEnum(
+  "step.ipimage.shotify.SourcePlatform",
+  [
+    {no: 0, name: "UNKOWN_PLATFORM"},
+    {no: 1, name: "KMOOD_DASHBOARD"},
+    {no: 2, name: "FEISHU_PLATFORM"},
   ],
 );
 
@@ -91,6 +104,7 @@ export const ShotifyInfo = /*@__PURE__*/ proto3.makeMessageType(
   () => [
     { no: 1, name: "prompt", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "row_id", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "table_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ],
 );
 
@@ -247,5 +261,74 @@ export const FeishuSplitShotResp = /*@__PURE__*/ proto3.makeMessageType(
   () => [
     { no: 1, name: "trace", kind: "message", T: OuterTrace },
   ],
+);
+
+/**
+ * @generated from message step.ipimage.shotify.UassetLibItem
+ */
+export const UassetLibItem = /*@__PURE__*/ proto3.makeMessageType(
+  "step.ipimage.shotify.UassetLibItem",
+  () => [
+    { no: 1, name: "type", kind: "enum", T: proto3.getEnumType(AssetType) },
+    { no: 2, name: "parent_asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "img_id", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "media_id" },
+    { no: 11, name: "video_id", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "media_id" },
+  ],
+);
+
+/**
+ * 创建资产请求
+ *
+ * @generated from message step.ipimage.shotify.FeishuBatchCreateUAssetReq
+ */
+export const FeishuBatchCreateUAssetReq = /*@__PURE__*/ proto3.makeMessageType(
+  "step.ipimage.shotify.FeishuBatchCreateUAssetReq",
+  () => [
+    { no: 1, name: "file_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 2, name: "items", kind: "message", T: UassetLibItem, repeated: true },
+    { no: 3, name: "source", kind: "message", T: FeishuBatchCreateUAssetReq_Source, opt: true },
+  ],
+);
+
+/**
+ * @generated from message step.ipimage.shotify.FeishuBatchCreateUAssetReq.Source
+ */
+export const FeishuBatchCreateUAssetReq_Source = /*@__PURE__*/ proto3.makeMessageType(
+  "step.ipimage.shotify.FeishuBatchCreateUAssetReq.Source",
+  () => [
+    { no: 1, name: "platform", kind: "enum", T: proto3.getEnumType(SourcePlatform) },
+    { no: 2, name: "table_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "table_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ],
+  {localName: "FeishuBatchCreateUAssetReq_Source"},
+);
+
+/**
+ * 创建资产响应
+ *
+ * @generated from message step.ipimage.shotify.FeishuBatchCreateUAssetResp
+ */
+export const FeishuBatchCreateUAssetResp = /*@__PURE__*/ proto3.makeMessageType(
+  "step.ipimage.shotify.FeishuBatchCreateUAssetResp",
+  () => [
+    { no: 1, name: "failed_items", kind: "message", T: FeishuBatchCreateUAssetResp_OutputUassetItem, repeated: true },
+    { no: 2, name: "succ_items", kind: "message", T: FeishuBatchCreateUAssetResp_OutputUassetItem, repeated: true },
+    { no: 3, name: "trace", kind: "message", T: OuterTrace },
+  ],
+);
+
+/**
+ * @generated from message step.ipimage.shotify.FeishuBatchCreateUAssetResp.OutputUassetItem
+ */
+export const FeishuBatchCreateUAssetResp_OutputUassetItem = /*@__PURE__*/ proto3.makeMessageType(
+  "step.ipimage.shotify.FeishuBatchCreateUAssetResp.OutputUassetItem",
+  () => [
+    { no: 1, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 2, name: "index", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "item", kind: "message", T: UassetLibItem },
+  ],
+  {localName: "FeishuBatchCreateUAssetResp_OutputUassetItem"},
 );
 

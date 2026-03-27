@@ -1,11 +1,19 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Typography, Card, Spin, Collapse, Tag, Space, Descriptions } from 'antd';
-import { UserOutlined, DatabaseOutlined, TableOutlined, AppstoreOutlined, DownOutlined, CopyOutlined, CheckOutlined, IdcardOutlined } from '@ant-design/icons';
+import { Typography, Card, Spin, Collapse, Tag, Space, Descriptions, Alert, Input, Button, message } from 'antd';
+import { UserOutlined, DatabaseOutlined, TableOutlined, AppstoreOutlined, DownOutlined, CopyOutlined, CheckOutlined, IdcardOutlined, KeyOutlined, SaveOutlined, DeleteOutlined, EditOutlined, CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
 import { useSelection } from '../hooks';
 import { bitable } from '@lark-base-open/js-sdk';
+import { getTokenByBaseId } from '../services/tokenService';
+import { TOKEN_STORAGE_KEY } from '../constant';
 
 
 const { Title, Text } = Typography;
+
+const ENABLE_COPY = false;
+
+interface WelcomeSectionProps {
+  onTokenChange: (token: string | null) => void;
+}
 
 /**
  * 根据当前时间返回问候语
@@ -24,19 +32,37 @@ function getGreeting(): string {
 }
 
 /**
+ * 对 token 进行脱敏展示：显示前4位和后4位，中间用 **** 代替
+ */
+function maskToken(token: string): string {
+  if (token.length <= 8) return '****';
+  return `${token.slice(0, 4)}****${token.slice(-4)}`;
+}
+
+/**
  * 欢迎区组件
  * 显示用户名称、基于时间的欢迎语，以及 SDK 获取的 Base/Table/View/Selection 信息
+ * 合并了原配置区的 Token 配置功能
  */
-function WelcomeSection() {
+function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
   const [userName] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Token 相关状态
+  const [token, setToken] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [tokenLoading, setTokenLoading] = useState(false);
+  const [tokenLoadingTip, setTokenLoadingTip] = useState('');
+
   // 使用全局选中状态
   const { state } = useSelection();
-  const { selectionInfo, tableName, viewName, loading, } = state;
+  const { selectionInfo, tableName, tableToken, viewName, loading, } = state;
+  const baseId = selectionInfo.baseId;
 
   const greeting = getGreeting();
+  const isConfigured = !!token;
 
   // 获取飞书用户 ID
   useEffect(() => {
@@ -46,6 +72,91 @@ function WelcomeSection() {
       console.error('获取用户 ID 失败:', err);
     });
   }, []);
+
+  /**
+   * 从后端映射表查询 Token
+   */
+  const fetchTokenFromMapping = useCallback(async (currentBaseId: string) => {
+    setTokenLoading(true);
+    setTokenLoadingTip('正在从映射表获取 Token...');
+
+    try {
+      const result = await getTokenByBaseId(currentBaseId);
+      if (result.success && result.token) {
+        localStorage.setItem(TOKEN_STORAGE_KEY, result.token);
+        setToken(result.token);
+        onTokenChange(result.token);
+      } else {
+        onTokenChange(null);
+      }
+    } catch (error) {
+      console.error('从映射表获取 Token 失败:', error);
+      onTokenChange(null);
+    } finally {
+      setTokenLoading(false);
+      setTokenLoadingTip('');
+    }
+  }, [onTokenChange]);
+
+  // 初始化：从 localStorage 读取 token，若无则查询映射表
+  useEffect(() => {
+    const cached = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (cached) {
+      setToken(cached);
+      onTokenChange(cached);
+    } else if (baseId) {
+      fetchTokenFromMapping(baseId);
+    } else {
+      onTokenChange(null);
+    }
+  }, [baseId]);
+
+  // 保存 token（双向同步：localStorage + 后端映射表）
+  const handleSaveToken = async () => {
+    const trimmed = inputValue.trim();
+    if (!trimmed) {
+      message.warning('Token 不能为空');
+      return;
+    }
+
+    setTokenLoading(true);
+    setTokenLoadingTip('正在保存...');
+
+    try {
+      localStorage.setItem(TOKEN_STORAGE_KEY, trimmed);
+      setToken(trimmed);
+      setInputValue('');
+      setEditing(false);
+      onTokenChange(trimmed);
+    } catch (error) {
+      message.error(`保存失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    } finally {
+      setTokenLoading(false);
+      setTokenLoadingTip('');
+    }
+  };
+
+  // 清除 token
+  const handleClearToken = () => {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    setToken(null);
+    setInputValue('');
+    setEditing(false);
+    onTokenChange(null);
+    message.info('Token 已清除');
+  };
+
+  // 进入编辑模式
+  const handleEditToken = () => {
+    setEditing(true);
+    setInputValue('');
+  };
+
+  // 取消编辑
+  const handleCancelEdit = () => {
+    setEditing(false);
+    setInputValue('');
+  };
 
   /** 复制 ID 到剪贴板 */
   const handleCopyId = useCallback(async (id: string, key: string) => {
@@ -70,7 +181,7 @@ function WelcomeSection() {
         <Tag color="blue" style={{ fontFamily: 'monospace', fontSize: 11, marginRight: 0 }}>
           {id}
         </Tag>
-        <span
+        {ENABLE_COPY ? <span
           onClick={(e) => {
             e.stopPropagation();
             handleCopyId(id, key);
@@ -84,10 +195,87 @@ function WelcomeSection() {
           title={isCopied ? '已复制' : `复制 ${label} ID`}
         >
           {isCopied ? <CheckOutlined /> : <CopyOutlined />}
-        </span>
+        </span> : null}
       </Space>
     );
   };
+
+  const showTokenInput = !isConfigured || editing;
+
+  /** Token 配置模块 */
+  const tokenConfigPanel = (
+    <div style={{ marginTop: 16, padding: '12px 16px', background: '#fafafa', borderRadius: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <KeyOutlined style={{ color: '#1677ff' }} />
+        <Text strong style={{ fontSize: 13 }}>Token 配置</Text>
+        {tokenLoading && <SyncOutlined spin style={{ color: '#1890ff' }} />}
+        {isConfigured && !editing && !tokenLoading && (
+          <Tag icon={<CheckCircleOutlined />} color="success" style={{ marginLeft: 4 }}>
+            已配置
+          </Tag>
+        )}
+      </div>
+      <Spin spinning={tokenLoading} tip={tokenLoadingTip}>
+        {showTokenInput ? (
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            <Input.Password
+              placeholder="请输入 Token"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onPressEnter={handleSaveToken}
+              allowClear
+              disabled={tokenLoading}
+            />
+            <Space>
+              <Button
+                type="primary"
+                size="small"
+                icon={<SaveOutlined />}
+                onClick={handleSaveToken}
+                loading={tokenLoading}
+              >
+                保存
+              </Button>
+              {editing && (
+                <Button size="small" onClick={handleCancelEdit} disabled={tokenLoading}>
+                  取消
+                </Button>
+              )}
+            </Space>
+            {!isConfigured && !tokenLoading && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                保存后将自动同步到 BaseID-Token 映射表
+              </Text>
+            )}
+          </Space>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Space>
+              <Text type="secondary">当前 Token：</Text>
+              <Text code>{maskToken(token!)}</Text>
+            </Space>
+            <Space>
+              <Button
+                size="small"
+                icon={<EditOutlined />}
+                onClick={handleEditToken}
+              >
+                修改
+              </Button>
+              <Button
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={handleClearToken}
+              >
+                清除
+              </Button>
+            </Space>
+          </div>
+        )}
+      </Spin>
+    </div>
+  );
 
   /** SDK 信息展示面板 */
   const sdkInfoPanel = (
@@ -95,8 +283,22 @@ function WelcomeSection() {
       <Descriptions
         size="small"
         column={1}
-        styles={{ label: { width: 90 } }}
+        styles={{ label: { width: 120 } }}
         items={[
+          {
+            key: 'userId',
+            label: (
+              <Space>
+                <IdcardOutlined />
+                <span>User ID</span>
+              </Space>
+            ),
+            children: userId ? (
+              renderIdTag(userId, 'User', 'userId')
+            ) : (
+              <Text type="secondary">未登录</Text>
+            ),
+          },
           {
             key: 'baseId',
             label: (
@@ -106,6 +308,16 @@ function WelcomeSection() {
               </Space>
             ),
             children: renderIdTag(selectionInfo.baseId, 'Base', 'baseId'),
+          },
+          {
+            key: 'appToken',
+            label: (
+              <Space>
+                <DatabaseOutlined />
+                <span>App Token</span>
+              </Space>
+            ),
+            children: renderIdTag(tableToken, 'App Token', 'tableToken'),
           },
           {
             key: 'tableId',
@@ -143,6 +355,8 @@ function WelcomeSection() {
           },
         ]}
       />
+      {/* Token 配置模块嵌入到上下文信息中 */}
+      {tokenConfigPanel}
     </div>
   );
 
@@ -151,7 +365,7 @@ function WelcomeSection() {
       key: 'sdk-info',
       label: (
         <Text strong style={{ fontSize: 13 }}>
-          当前上下文信息
+          上下文信息
         </Text>
       ),
       children: sdkInfoPanel,
@@ -159,44 +373,51 @@ function WelcomeSection() {
   ];
 
   return (
-    <Card
-      style={{ marginBottom: 16 }}
-      styles={{ body: { padding: '16px 20px' } }}
-    >
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: 20 }}>
-          <Spin size="small" />
-          <Text type="secondary" style={{ marginLeft: 8 }}>加载中...</Text>
-        </div>
-      ) : (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <UserOutlined style={{ fontSize: 24, color: '#1677ff' }} />
-            <div>
-              <Title level={5} style={{ margin: 0 }}>
-                {greeting}{userName ? ',' : ''}{userName}{userName ? '!' : ''}
-              </Title>
-              <Text type="secondary" style={{ fontSize: 13 }}>
-                欢迎使用 KMood 多维表格工具
-              </Text>
-            </div>
-          </div>
-          {userId && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, paddingLeft: 36 }}>
-              <IdcardOutlined style={{ color: '#8c8c8c', fontSize: 13 }} />
-              <Text type="secondary" style={{ fontSize: 12 }}>用户 ID：</Text>
-              {renderIdTag(userId, '用户', 'userId')}
-            </div>
-          )}
-          <Collapse
-            ghost
-            size="small"
-            expandIcon={({ isActive }) => <DownOutlined rotate={isActive ? 180 : 0} />}
-            items={collapseItems}
-          />
-        </>
+    <>
+      {/* Token 未配置时，在欢迎区上方显示警告 */}
+      {!isConfigured && !tokenLoading && (
+        <Alert
+          message="Token 未配置"
+          description="请展开下方「上下文信息」配置 Token 后，方可使用操作区功能。"
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
       )}
-    </Card>
+      <Card
+        style={{ marginBottom: 16 }}
+        styles={{ body: { padding: '16px 20px' } }}
+      >
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 20 }}>
+            <Spin size="small" />
+            <Text type="secondary" style={{ marginLeft: 8 }}>加载中...</Text>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <UserOutlined style={{ fontSize: 24, color: '#1677ff' }} />
+              <div>
+                <Title level={5} style={{ margin: 0 }}>
+                  {greeting}{userName ? ',' : ''}{userName}{userName ? '!' : ''}
+                </Title>
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  欢迎使用 KMood 多维表格工具
+                </Text>
+              </div>
+            </div>
+            <Collapse
+              ghost
+              size="small"
+              expandIcon={({ isActive }) => <DownOutlined rotate={isActive ? 180 : 0} />}
+              items={collapseItems}
+              // 默认收起：不设置 defaultActiveKey 或设为空数组
+              defaultActiveKey={[]}
+            />
+          </>
+        )}
+      </Card>
+    </>
   );
 }
 

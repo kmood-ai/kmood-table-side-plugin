@@ -9,3 +9,6 @@ export type {
   TableStructureNode,
   TableStructure,
 } from "./useTableOperations";
+
+export { useTableType } from "./useTableType";
+export type { UseTableTypeResult, TableType } from "./useTableType";
