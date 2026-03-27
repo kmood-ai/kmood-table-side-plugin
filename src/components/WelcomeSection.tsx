@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Typography, Card, Spin, Collapse, Tag, Space, Descriptions } from 'antd';
-import { UserOutlined, DatabaseOutlined, TableOutlined, AppstoreOutlined, DownOutlined, CopyOutlined, CheckOutlined } from '@ant-design/icons';
+import { UserOutlined, DatabaseOutlined, TableOutlined, AppstoreOutlined, DownOutlined, CopyOutlined, CheckOutlined, IdcardOutlined } from '@ant-design/icons';
 import { useSelection } from '../hooks';
+import { bitable } from '@lark-base-open/js-sdk';
 
 
 const { Title, Text } = Typography;
@@ -28,6 +29,7 @@ function getGreeting(): string {
  */
 function WelcomeSection() {
   const [userName] = useState<string>('');
+  const [userId, setUserId] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // 使用全局选中状态
@@ -35,6 +37,15 @@ function WelcomeSection() {
   const { selectionInfo, tableName, viewName, loading, } = state;
 
   const greeting = getGreeting();
+
+  // 获取飞书用户 ID
+  useEffect(() => {
+    bitable.bridge.getUserId().then((id) => {
+      if (id) setUserId(id);
+    }).catch((err) => {
+      console.error('获取用户 ID 失败:', err);
+    });
+  }, []);
 
   /** 复制 ID 到剪贴板 */
   const handleCopyId = useCallback(async (id: string, key: string) => {
@@ -57,7 +68,7 @@ function WelcomeSection() {
     return (
       <Space size={4}>
         <Tag color="blue" style={{ fontFamily: 'monospace', fontSize: 11, marginRight: 0 }}>
-          {id.length > 16 ? `${id.slice(0, 8)}...${id.slice(-4)}` : id}
+          {id}
         </Tag>
         <span
           onClick={(e) => {
@@ -170,6 +181,13 @@ function WelcomeSection() {
               </Text>
             </div>
           </div>
+          {userId && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, paddingLeft: 36 }}>
+              <IdcardOutlined style={{ color: '#8c8c8c', fontSize: 13 }} />
+              <Text type="secondary" style={{ fontSize: 12 }}>用户 ID：</Text>
+              {renderIdTag(userId, '用户', 'userId')}
+            </div>
+          )}
           <Collapse
             ghost
             size="small"
