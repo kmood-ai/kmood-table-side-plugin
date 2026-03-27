@@ -78,7 +78,3 @@ npm run preview
 ```bash
 npm run lint
 ```
-
-## 📝 License
-
-ISC
