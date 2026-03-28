@@ -94,5 +94,22 @@
   "batchGen.taskSubmitted": "Task submitted",
   "batchGen.submitSuccessToast": "Batch generation submitted successfully! {count} succeeded",
   "batchGen.partialFailedToast": "{count} tasks failed to submit",
-  "batchGen.submitFailed": "Batch generation submit failed: {error}"
+  "batchGen.submitFailed": "Batch generation submit failed: {error}",
+  "record.selectRowFirst": "Please select a row first",
+  "record.selectRowDesc": "After selecting a row in the table, you can view its complete content",
+  "record.loadingData": "Loading data...",
+  "record.loadFailed": "Failed to load record data",
+  "record.noData": "No data available",
+  "record.currentRow": "Current Row",
+  "record.recordId": "Record ID",
+  "record.fieldData": "Field Data",
+  "record.empty": "Empty",
+  "record.edit": "Edit",
+  "record.editPrompt": "Edit Prompt",
+  "record.save": "Save",
+  "record.cancel": "Cancel",
+  "record.enterPrompt": "Please enter prompt content",
+  "record.updateSuccess": "Updated successfully",
+  "record.updateFailed": "Update failed",
+  "cell.retry": "Retry"
 }

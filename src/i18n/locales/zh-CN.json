@@ -94,5 +94,22 @@
   "batchGen.taskSubmitted": "任务已提交",
   "batchGen.submitSuccessToast": "批量生成任务提交成功！成功 {count} 个",
   "batchGen.partialFailedToast": "有 {count} 个任务提交失败",
-  "batchGen.submitFailed": "批量生成任务提交失败: {error}"
+  "batchGen.submitFailed": "批量生成任务提交失败: {error}",
+  "record.selectRowFirst": "请先选中一行",
+  "record.selectRowDesc": "在表格中选中一行后，可以查看该行的完整内容",
+  "record.loadingData": "正在加载数据...",
+  "record.loadFailed": "加载记录数据失败",
+  "record.noData": "暂无数据",
+  "record.currentRow": "当前选中行",
+  "record.recordId": "记录 ID",
+  "record.fieldData": "字段数据",
+  "record.empty": "空",
+  "record.edit": "编辑",
+  "record.editPrompt": "编辑 Prompt",
+  "record.save": "保存",
+  "record.cancel": "取消",
+  "record.enterPrompt": "请输入 Prompt 内容",
+  "record.updateSuccess": "更新成功",
+  "record.updateFailed": "更新失败",
+  "cell.retry": "重试"
 }

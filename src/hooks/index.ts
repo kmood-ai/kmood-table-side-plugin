@@ -12,3 +12,15 @@ export type {
 
 export { useTableType } from "./useTableType";
 export type { UseTableTypeResult, TableType } from "./useTableType";
+
+export { useTable } from "./useTable";
+export type {
+  FieldInfo as TableFieldInfo,
+  CellInfo,
+  RecordInfo,
+  AddFieldConfig,
+  UpdateFieldConfig,
+  AddRecordConfig,
+  UpdateRecordConfig,
+  BatchResult,
+} from "./useTable";

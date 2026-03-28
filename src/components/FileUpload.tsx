@@ -110,7 +110,7 @@ const getUploadType = (filename: string): UploadType => {
   const ext = filename.split('.').pop()?.toLowerCase() ?? '';
   // Excel 文件使用 BINARY 类型
   if (['xlsx', 'xls'].includes(ext)) {
-    return UploadType.BINARY;
+    return UploadType.TEXT;
   }
   // 文本类文件使用 TEXT 类型
   if (['txt', 'csv', 'json', 'xml', 'md', 'log'].includes(ext)) {

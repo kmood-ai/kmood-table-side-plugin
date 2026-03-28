@@ -22,6 +22,7 @@ import { AssetType } from '../../generated/ipimage/common/types_pb.js';
 import type { UploadResult } from '../services/uploadService';
 import { message } from 'antd';
 import CellOperations from './CellOperations';
+import RecordEditing from './RecordEditing';
 import type { SelectedFile } from './FileUpload.js';
 import { SourcePlatform } from '../../generated/ipimage/shotify/outer_pb.js';
 import useSelection from '../hooks/useSelection.js';
@@ -96,14 +97,30 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
   }, [state.selectionInfo.tableId, state.tableToken, t]);
 
   // 批量上传 Prompt 回调
-  const onSubmitBatchPrompt = useCallback(async () => {
+  const onSubmitBatchPrompt = useCallback(async (results: SelectedFile[]) => {
     try {
-      await outerClient.feishuSplitShot({});
+      // 提取成功上传的文件ID
+      const successfulFiles = results.filter(r => r.status === 'success' && r.result?.id);
+
+      if (successfulFiles.length === 0) {
+        message.warning(t('operation.noFilesToSubmit'));
+        return;
+      }
+
+      // 目前只支持单文件，取第一个文件的ID
+      const fileId = successfulFiles[0].result!.id;
+
+      const resp = await outerClient.feishuSplitShot({ fileId, table: { tableId: state.selectionInfo.tableId || '', tableToken: state.tableToken || '' } });
       message.success(t('operation.promptSubmitSuccess'));
+
+      return {
+        removeList: successfulFiles.map(item => item.tmpId || ''),
+        traceId: resp.trace?.traceId || '',
+      };
     } catch (error) {
       message.error(t('operation.submitFailed', { error: error instanceof Error ? error.message : 'Unknown error' }));
     }
-  }, [t]);
+  }, [state.selectionInfo.tableId, state.tableToken, t]);
 
   // Token 未配置时的提示
   if (disabled) {
@@ -206,16 +223,21 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
       key: 'upload-prompt',
       label: t('operation.singleProcess'),
       children: (
-        <Empty description={t('operation.inDevelopment')} />
-        // <CellOperations
-        //   disabled={disabled}
-        // />
+        <RecordEditing
+          disabled={disabled}
+        />
       ),
     },
     {
       key: 'batch-generate',
       label: t('operation.batchProcess'),
-      children: <Empty description={t('operation.inDevelopment')} />
+      children: (<div>
+        <BatchUploadPanel
+          accept={['xlsx']}
+          title={'批量生成prompt'}
+          disabled={disabled}
+          onSubmit={onSubmitBatchPrompt}
+        /></div>)
     },
   ];
 

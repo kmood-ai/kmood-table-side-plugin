@@ -94,5 +94,22 @@
   "batchGen.taskSubmitted": "タスク送信済み",
   "batchGen.submitSuccessToast": "一括生成タスクの送信成功！{count} 件成功",
   "batchGen.partialFailedToast": "{count} 件のタスク送信に失敗しました",
-  "batchGen.submitFailed": "一括生成タスクの送信失敗: {error}"
+  "batchGen.submitFailed": "一括生成タスクの送信失敗: {error}",
+  "record.selectRowFirst": "先に行を選択してください",
+  "record.selectRowDesc": "テーブルで行を選択すると、その完全な内容を表示できます",
+  "record.loadingData": "データを読み込み中...",
+  "record.loadFailed": "レコードデータの読み込みに失敗しました",
+  "record.noData": "データがありません",
+  "record.currentRow": "選択中の行",
+  "record.recordId": "レコード ID",
+  "record.fieldData": "フィールドデータ",
+  "record.empty": "空",
+  "record.edit": "編集",
+  "record.editPrompt": "Prompt を編集",
+  "record.save": "保存",
+  "record.cancel": "キャンセル",
+  "record.enterPrompt": "Prompt を入力してください",
+  "record.updateSuccess": "更新成功",
+  "record.updateFailed": "更新失敗",
+  "cell.retry": "再試行"
 }

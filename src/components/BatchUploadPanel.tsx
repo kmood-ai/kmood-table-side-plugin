@@ -45,6 +45,8 @@ interface BatchUploadPanelProps {
   accept?: string[];
   /** 是否需要上传到远端服务器，默认 true */
   needUploadServer?: boolean;
+  /** 是否支持多选文件，默认 true */
+  multiple?: boolean;
   /** 提交回调，支持异步 */
   onSubmit?: (results: SelectedFile[]) => Promise<OnSubmitReturn | undefined> | void;
 }
