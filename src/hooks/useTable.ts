@@ -22,6 +22,7 @@ export interface FieldInfo {
   type: FieldType;
   isPrimary: boolean;
   description?: string;
+  original: IFieldMeta;
 }
 
 /**
@@ -35,7 +36,7 @@ export interface CellInfo {
   /** 字段类型 */
   fieldType: FieldType;
   /** 单元格值 */
-  value: ICell;
+  value: IOpenCellValue;
 }
 
 /**
@@ -45,7 +46,7 @@ export interface RecordInfo {
   /** 记录 ID */
   recordId: string;
   /** 字段值映射 (fieldId -> value) */
-  fields: Record<string, ICell>;
+  fields: Record<string, IOpenCellValue>;
 }
 
 /**
@@ -79,7 +80,7 @@ export interface UpdateFieldConfig {
  */
 export interface AddRecordConfig {
   /** 字段值映射 (fieldId -> value) */
-  fields: Record<string, ICell>;
+  fields: Record<string, IOpenCellValue>;
 }
 
 /**
@@ -89,7 +90,7 @@ export interface UpdateRecordConfig {
   /** 记录 ID */
   recordId: string;
   /** 字段值映射 (fieldId -> value) */
-  fields: Record<string, ICell>;
+  fields: Record<string, IOpenCellValue>;
 }
 
 /**
@@ -149,7 +150,7 @@ export function useTable() {
    * @returns 字段信息数组
    */
   const getFieldList = useCallback(
-    async (tableId?: string): Promise<FieldInfo[]> => {
+    async (tableId?: string): Promise<IFieldMeta[]> => {
       try {
         const targetTableId = tableId || selectionInfo.tableId;
         if (!targetTableId) {
@@ -160,13 +161,7 @@ export function useTable() {
         const table = await getTable(targetTableId);
         const fieldMetaList: IFieldMeta[] = await table.getFieldMetaList();
 
-        return fieldMetaList.map((meta) => ({
-          id: meta.id,
-          name: meta.name,
-          type: meta.type,
-          isPrimary: meta.isPrimary || false,
-          description: meta.description,
-        }));
+        return fieldMetaList;
       } catch (error) {
         console.error("useTable.getFieldList: 获取字段列表失败", error);
         throw error;
@@ -201,7 +196,7 @@ export function useTable() {
 
         // 逐条获取记录
         for (const recordId of recordIdList) {
-          const fields: Record<string, ICell> = {};
+          const fields: Record<string, IOpenCellValue> = {};
           for (const fieldId of fieldIds) {
             const value = await table.getCellValue(fieldId, recordId);
             fields[fieldId] = value;
@@ -247,7 +242,7 @@ export function useTable() {
         const records: RecordInfo[] = [];
 
         for (const recordId of recordIdList) {
-          const fields: Record<string, ICell> = {};
+          const fields: Record<string, IOpenCellValue> = {};
           for (const fieldId of fieldIds) {
             const value = await table.getCellValue(fieldId, recordId);
             fields[fieldId] = value;
@@ -353,7 +348,7 @@ export function useTable() {
 
         const table = await getTable(targetTableId);
         const field = await table.getFieldById(fieldId);
-        await field.setName(newName);
+        await field.setValue(fieldId, newName);
       } catch (error) {
         console.error("useTable.updateFieldName: 更新字段名称失败", error);
         throw error;
@@ -368,32 +363,32 @@ export function useTable() {
    * @param tableId 表格 ID，不传则使用当前选中的表格
    * @returns 新增字段的 ID
    */
-  const addField = useCallback(
-    async (config: AddFieldConfig, tableId?: string): Promise<string> => {
-      try {
-        const targetTableId = tableId || selectionInfo.tableId;
-        if (!targetTableId) {
-          throw new Error("未指定表格 ID 且当前未选中表格");
-        }
+  // const addField = useCallback(
+  //   async (config: AddFieldConfig, tableId?: string): Promise<string> => {
+  //     try {
+  //       const targetTableId = tableId || selectionInfo.tableId;
+  //       if (!targetTableId) {
+  //         throw new Error("未指定表格 ID 且当前未选中表格");
+  //       }
 
-        const table = await getTable(targetTableId);
-        const fieldId = await table.addField({
-          type: config.type,
-          name: config.name,
-          description: config.description
-            ? { content: config.description }
-            : undefined,
-          property: config.property,
-        });
+  //       const table = await getTable(targetTableId);
+  //       const fieldId = await table.addField({
+  //         type: config.type,
+  //         name: config.name,
+  //         description: config.description
+  //           ? { content: config.description }
+  //           : undefined,
+  //         property: config.property,
+  //       });
 
-        return fieldId;
-      } catch (error) {
-        console.error("useTable.addField: 新增字段失败", error);
-        throw error;
-      }
-    },
-    [selectionInfo, getTable]
-  );
+  //       return "";
+  //     } catch (error) {
+  //       console.error("useTable.addField: 新增字段失败", error);
+  //       throw error;
+  //     }
+  //   },
+  //   [selectionInfo, getTable]
+  // );
 
   /**
    * 1.3 更新字段配置
@@ -418,17 +413,7 @@ export function useTable() {
 
         // 更新名称
         if (config.name !== undefined) {
-          await field.setName(config.name);
-        }
-
-        // 更新描述
-        if (config.description !== undefined) {
-          await field.setDescription({ content: config.description });
-        }
-
-        // 更新属性（如果有）
-        if (config.property !== undefined) {
-          await field.setProperty(config.property);
+          await field.setValue(fieldId, config.name);
         }
       } catch (error) {
         console.error("useTable.updateField: 更新字段失败", error);
@@ -447,7 +432,7 @@ export function useTable() {
   const updateRecord = useCallback(
     async (
       recordId: string,
-      fields: Record<string, ICell>,
+      fields: Record<string, IOpenCellValue>,
       tableId?: string
     ): Promise<void> => {
       try {
@@ -511,7 +496,7 @@ export function useTable() {
    */
   const addRecord = useCallback(
     async (
-      fields: Record<string, ICell>,
+      fields: Record<string, IOpenCellValue>,
       tableId?: string
     ): Promise<string> => {
       try {
@@ -539,7 +524,7 @@ export function useTable() {
    */
   const addRecords = useCallback(
     async (
-      recordsList: Record<string, ICell>[],
+      recordsList: Record<string, IOpenCellValue>[],
       tableId?: string
     ): Promise<string[]> => {
       try {
@@ -595,7 +580,7 @@ export function useTable() {
    * @param value 单元格值
    */
   const setCurrentCell = useCallback(
-    async (value: ICell): Promise<void> => {
+    async (value: IOpenCellValue): Promise<void> => {
       const { tableId, fieldId, recordId } = selectionInfo;
       if (!tableId || !fieldId || !recordId) {
         throw new Error("当前未选中单元格");
@@ -782,7 +767,7 @@ export function useTable() {
           name: fieldMeta.name,
           type: fieldMeta.type,
           isPrimary: fieldMeta.isPrimary || false,
-          description: fieldMeta.description,
+          // description: fieldMeta.description,
         };
       } catch (error) {
         console.error("useTable.getFieldById: 获取字段信息失败", error);
@@ -804,6 +789,7 @@ export function useTable() {
     currentFieldId: selectionInfo.fieldId,
     /** 当前选中的记录 ID */
     currentRecordId: selectionInfo.recordId,
+    getTable,
 
     // 读取功能
     /** 获取字段列表 */
@@ -823,7 +809,7 @@ export function useTable() {
     /** 更新字段名称 */
     updateFieldName,
     /** 新增字段 */
-    addField,
+    // addField,
     /** 更新字段配置 */
     updateField,
     /** 删除字段 */

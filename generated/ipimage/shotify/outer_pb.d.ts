@@ -84,9 +84,28 @@ export declare class FeishuCallbackReq extends Message<FeishuCallbackReq> {
   segmentInfos: SegmentInfo[];
 
   /**
+   * for write back
+   *
    * @generated from field: string table_id = 2;
    */
   tableId: string;
+
+  /**
+   * @generated from field: string shotify_table_id = 3;
+   */
+  shotifyTableId: string;
+
+  /**
+   * for get node token
+   *
+   * @generated from field: string table_token = 4;
+   */
+  tableToken: string;
+
+  /**
+   * @generated from field: bool enable_at_media = 5;
+   */
+  enableAtMedia: boolean;
 
   constructor(data?: PartialMessage<FeishuCallbackReq>);
 
@@ -198,6 +217,13 @@ export declare class SegmentInfo extends Message<SegmentInfo> {
    */
   extendVideoIds: string;
 
+  /**
+   * 下面是新协议: for 插件
+   *
+   * @generated from field: map<string, step.ipimage.shotify.Media> name_media_map = 16;
+   */
+  nameMediaMap: { [key: string]: Media };
+
   constructor(data?: PartialMessage<SegmentInfo>);
 
   static readonly runtime: typeof proto3;
@@ -211,6 +237,40 @@ export declare class SegmentInfo extends Message<SegmentInfo> {
   static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SegmentInfo;
 
   static equals(a: SegmentInfo | PlainMessage<SegmentInfo> | undefined, b: SegmentInfo | PlainMessage<SegmentInfo> | undefined): boolean;
+}
+
+/**
+ * @generated from message step.ipimage.shotify.Media
+ */
+export declare class Media extends Message<Media> {
+  /**
+   * @generated from field: string file_token = 1;
+   */
+  fileToken: string;
+
+  /**
+   * @generated from field: string file_type = 2;
+   */
+  fileType: string;
+
+  /**
+   * @generated from field: string file_size = 3;
+   */
+  fileSize: string;
+
+  constructor(data?: PartialMessage<Media>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "step.ipimage.shotify.Media";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Media;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Media;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Media;
+
+  static equals(a: Media | PlainMessage<Media> | undefined, b: Media | PlainMessage<Media> | undefined): boolean;
 }
 
 /**
@@ -306,6 +366,8 @@ export declare class ShotifyInfo extends Message<ShotifyInfo> {
   rowId: number;
 
   /**
+   * 插件上线该字段废弃
+   *
    * @generated from field: string table_id = 3;
    */
   tableId: string;
@@ -333,6 +395,20 @@ export declare class FeishuShotifyReq extends Message<FeishuShotifyReq> {
    * @generated from field: repeated step.ipimage.shotify.ShotifyInfo feishu_shotify_info = 1;
    */
   feishuShotifyInfo: ShotifyInfo[];
+
+  /**
+   * 分镜表id
+   *
+   * @generated from field: string storyboard_table_id = 2;
+   */
+  storyboardTableId: string;
+
+  /**
+   * 资产表id
+   *
+   * @generated from field: string shotify_table_id = 3;
+   */
+  shotifyTableId: string;
 
   constructor(data?: PartialMessage<FeishuShotifyReq>);
 
@@ -717,6 +793,44 @@ export declare class FeishuTable extends Message<FeishuTable> {
 }
 
 /**
+ * @generated from message step.ipimage.shotify.FeishuUAsset
+ */
+export declare class FeishuUAsset extends Message<FeishuUAsset> {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * 附件类型，e.g  image
+   *
+   * @generated from field: string file_type = 2;
+   */
+  fileType: string;
+
+  /**
+   * 附件文件tk
+   *
+   * @generated from field: string file_token = 3;
+   */
+  fileToken: string;
+
+  constructor(data?: PartialMessage<FeishuUAsset>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "step.ipimage.shotify.FeishuUAsset";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FeishuUAsset;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FeishuUAsset;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FeishuUAsset;
+
+  static equals(a: FeishuUAsset | PlainMessage<FeishuUAsset> | undefined, b: FeishuUAsset | PlainMessage<FeishuUAsset> | undefined): boolean;
+}
+
+/**
  * @generated from message step.ipimage.shotify.FeishuSplitShotReq
  */
 export declare class FeishuSplitShotReq extends Message<FeishuSplitShotReq> {
@@ -738,6 +852,18 @@ export declare class FeishuSplitShotReq extends Message<FeishuSplitShotReq> {
    * @generated from field: optional step.ipimage.shotify.FeishuTable table = 3;
    */
   table?: FeishuTable;
+
+  /**
+   * 是否同时提取资产
+   *
+   * @generated from field: bool extract_assets = 4;
+   */
+  extractAssets: boolean;
+
+  /**
+   * @generated from field: repeated step.ipimage.shotify.FeishuUAsset assets = 5;
+   */
+  assets: FeishuUAsset[];
 
   constructor(data?: PartialMessage<FeishuSplitShotReq>);
 

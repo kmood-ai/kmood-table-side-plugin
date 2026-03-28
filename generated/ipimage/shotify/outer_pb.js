@@ -43,6 +43,9 @@ export const FeishuCallbackReq = /*@__PURE__*/ proto3.makeMessageType(
   () => [
     { no: 1, name: "segment_infos", kind: "message", T: SegmentInfo, repeated: true },
     { no: 2, name: "table_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "shotify_table_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "table_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "enable_at_media", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ],
 );
 
@@ -67,6 +70,19 @@ export const SegmentInfo = /*@__PURE__*/ proto3.makeMessageType(
     { no: 13, name: "generate_audio", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 14, name: "mode_ch", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 15, name: "extend_video_ids", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 16, name: "name_media_map", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: Media} },
+  ],
+);
+
+/**
+ * @generated from message step.ipimage.shotify.Media
+ */
+export const Media = /*@__PURE__*/ proto3.makeMessageType(
+  "step.ipimage.shotify.Media",
+  () => [
+    { no: 1, name: "file_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "file_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "file_size", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ],
 );
 
@@ -115,6 +131,8 @@ export const FeishuShotifyReq = /*@__PURE__*/ proto3.makeMessageType(
   "step.ipimage.shotify.FeishuShotifyReq",
   () => [
     { no: 1, name: "feishu_shotify_info", kind: "message", T: ShotifyInfo, repeated: true },
+    { no: 2, name: "storyboard_table_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "shotify_table_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ],
 );
 
@@ -242,6 +260,18 @@ export const FeishuTable = /*@__PURE__*/ proto3.makeMessageType(
 );
 
 /**
+ * @generated from message step.ipimage.shotify.FeishuUAsset
+ */
+export const FeishuUAsset = /*@__PURE__*/ proto3.makeMessageType(
+  "step.ipimage.shotify.FeishuUAsset",
+  () => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "file_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "file_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ],
+);
+
+/**
  * @generated from message step.ipimage.shotify.FeishuSplitShotReq
  */
 export const FeishuSplitShotReq = /*@__PURE__*/ proto3.makeMessageType(
@@ -250,6 +280,8 @@ export const FeishuSplitShotReq = /*@__PURE__*/ proto3.makeMessageType(
     { no: 1, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 2, name: "file_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 3, name: "table", kind: "message", T: FeishuTable, opt: true },
+    { no: 4, name: "extract_assets", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "assets", kind: "message", T: FeishuUAsset, repeated: true },
   ],
 );
 

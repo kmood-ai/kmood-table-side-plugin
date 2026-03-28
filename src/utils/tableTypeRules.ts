@@ -4,7 +4,10 @@
  */
 
 export type TableType = "asset" | "production" | "unknown";
-export type TableTypeLabelKey = "tableType.asset" | "tableType.production" | "tableType.unknown";
+export type TableTypeLabelKey =
+  | "tableType.asset"
+  | "tableType.production"
+  | "tableType.unknown";
 
 /**
  * 资产表识别字段（不区分大小写）
@@ -17,6 +20,20 @@ export const ASSET_TABLE_FIELDS = ["name", "资产ID", "资产id"];
  * 需要匹配至少两个字段才判定为生产表
  */
 export const PRODUCTION_TABLE_FIELDS = ["prompt"];
+
+export const PRODUCTION_TABLE_ID_FIELD_NAME = "id";
+export const PRODUCTION_TABLE_PROMPT_FIELD_NAME = "prompt";
+export const PRODUCTION_TABLE_RATIO_FIELD_NAME = "尺寸";
+export const PRODUCTION_TABLE_RESOLUTION_FIELD_NAME = "分辨率";
+export const PRODUCTION_TABLE_DURATION_FIELD_NAME = "时长";
+export const PRODUCTION_TABLE_UPLOAD_FIELD_NAME = "本地文件";
+export const PRODUCTION_TABLE_ASSET_IMAGE_FIELD_NAME = "资产图片";
+export const PRODUCTION_TABLE_MODE_CH_FIELD_NAME = "模式";
+export const PRODUCTION_TABLE_STATUS_FIELD_NAME = "状态";
+
+export const ASSET_TABLE_NAME_FIELD_NAME = "name";
+export const ASSET_TABLE_ATTACHMENT_FIELD_NAME = "图片附件";
+export const ASSET_TABLE_ID_FIELD_NAME = "id";
 
 /**
  * 生产表最少匹配字段数

@@ -26,7 +26,8 @@ import { useTable } from '../hooks/useTable';
 import type { RecordInfo, FieldInfo } from '../hooks/useTable';
 import { formatCellValue } from '../utils/table';
 import { useI18n } from '../i18n';
-import { bitable, type ICell } from '@lark-base-open/js-sdk';
+import { bitable, type ICell, type IOpenAttachment } from '@lark-base-open/js-sdk';
+import { getAttachmentUrls } from '../utils';
 
 const { Text, Paragraph } = Typography;
 
@@ -36,6 +37,7 @@ interface RecordEditingProps {
 }
 
 const displayFields = [
+  'id',
   'prompt',
   '本地文件',
   '资产图片',
@@ -181,32 +183,6 @@ export default function RecordEditing({ disabled }: RecordEditingProps) {
   };
 
   /**
-   * 判断是否为附件类型并渲染
-   */
-  const renderAttachmentValue = (cellValue: ICell<any, any>, fieldId: string) => {
-    // 检查是否为附件数组：[{token: '...', name: '...', ...}]
-    if (!Array.isArray(cellValue) || cellValue.length === 0) {
-      return null;
-    }
-
-    // 检查第一个元素是否包含 token 字段（飞书附件特征）
-    const firstItem = cellValue[0];
-    if (!firstItem || typeof firstItem !== 'object' || !firstItem.token) {
-      return null;
-    }
-
-    // 渲染附件列表
-    return (
-      <AttachmentList
-        attachments={cellValue}
-        fieldId={fieldId}
-        recordId={currentRecordId}
-        tableId={selectionInfo.tableId}
-      />
-    );
-  };
-
-  /**
    * 附件列表组件（支持异步加载缩略图）
    */
   const AttachmentList = ({
@@ -215,35 +191,27 @@ export default function RecordEditing({ disabled }: RecordEditingProps) {
     recordId,
     tableId,
   }: {
-    attachments: ICell<any, any>[];
+    attachments?: IOpenAttachment[];
     fieldId: string;
     recordId: string | null;
     tableId: string | null;
   }) => {
     const [thumbnailUrls, setThumbnailUrls] = useState<(string | null)[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-      if (!recordId || !tableId) {
-        setLoading(false);
+    const getThumbnailUrls = useCallback(async () => {
+
+      if (!recordId || !tableId || !fieldId || !attachments || attachments.length === 0) {
         return;
       }
+      setLoading(true);
+      const urls = await getAttachmentUrls(attachments, { fieldId, recordId, tableId });
+      setThumbnailUrls(urls);
+      setLoading(false);
+    }, [recordId, tableId, fieldId, attachments]);
 
-      // 异步获取缩略图 URL
-      const loadThumbnails = async () => {
-        try {
-          const table = await bitable.base.getTable(tableId);
-          const urls = await table.getCellThumbnailUrls(fieldId, recordId);
-          setThumbnailUrls(urls);
-        } catch (err) {
-          console.error('获取缩略图失败:', err);
-          setThumbnailUrls([]);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      loadThumbnails();
+    useEffect(() => {
+      getThumbnailUrls();
     }, [recordId, tableId, fieldId]);
 
     if (loading) {
@@ -252,7 +220,7 @@ export default function RecordEditing({ disabled }: RecordEditingProps) {
 
     return (
       <Space direction="vertical" size="small" style={{ width: '100%' }}>
-        {attachments.map((attachment: ICell<any, any>, index: number) => {
+        {attachments?.map((attachment: IOpenAttachment, index: number) => {
           const { token, name, type } = attachment;
           const thumbnailUrl = thumbnailUrls[index];
 
@@ -486,10 +454,7 @@ export default function RecordEditing({ disabled }: RecordEditingProps) {
             const cellValue = recordData.fields[field.id];
             const formattedValue = formatCellValue(cellValue);
 
-            // 判断是否为附件类型
-            const attachmentContent = renderAttachmentValue(cellValue, field.id);
-
-            console.log('【field】', field.name, '【cellValue】', cellValue, attachmentContent);
+            const fieldType = field.type;
 
             return (
               <Descriptions.Item
@@ -506,9 +471,9 @@ export default function RecordEditing({ disabled }: RecordEditingProps) {
                 }
               >
                 <Space direction="vertical" style={{ width: '100%' }}>
-                  {/* 优先展示附件内容 */}
-                  {attachmentContent ? (
-                    attachmentContent
+                  {/* 展示附件内容 */}
+                  {fieldType === 17 ? (
+                    <AttachmentList attachments={cellValue as unknown as IOpenAttachment[]} fieldId={field.id} recordId={currentRecordId} tableId={selectionInfo.tableId} />
                   ) : formattedValue ? (
                     <Paragraph
                       ellipsis={{

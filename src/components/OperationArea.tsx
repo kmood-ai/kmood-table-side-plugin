@@ -8,26 +8,27 @@ import {
   Space,
   Typography,
   Spin,
-  Empty,
+  Select,
 } from 'antd';
 import {
   AppstoreOutlined,
   TableOutlined,
 } from '@ant-design/icons';
+import { bitable, type ITable } from '@lark-base-open/js-sdk';
 import { useTableType } from '../hooks/useTableType';
 import { getTableTypeLabelKey, getTableTypeColor, ASSET_TABLE_FIELDS, PRODUCTION_TABLE_FIELDS } from '../utils/tableTypeRules';
-import BatchUploadPanel, { type BatchUploadResult } from './BatchUploadPanel';
-import { fromBase64, outerClient } from '../services';
+import BatchUploadPanel from './BatchUploadPanel';
+import BatchGeneration from './BatchGeneration';
+import { outerClient } from '../services';
 import { AssetType } from '../../generated/ipimage/common/types_pb.js';
-import type { UploadResult } from '../services/uploadService';
 import { message } from 'antd';
-import CellOperations from './CellOperations';
 import RecordEditing from './RecordEditing';
 import type { SelectedFile } from './FileUpload.js';
-import { SourcePlatform } from '../../generated/ipimage/shotify/outer_pb.js';
+import { FeishuUAsset, SourcePlatform } from '../../generated/ipimage/shotify/outer_pb.js';
 import useSelection from '../hooks/useSelection.js';
-import { TOKEN_STORAGE_KEY } from '../constant.js';
 import { useI18n } from '../i18n';
+import { formatCellValue } from '../utils/table.js';
+import CollapsibleSection from './CollapsibleSection';
 
 const { Text } = Typography;
 
@@ -52,6 +53,9 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
   const { state } = useSelection();
   const { t } = useI18n();
 
+  const [assetTables, setAssetTables] = useState<ITable[]>([]);
+  const [currentSelectAssetTable, setCurrentSelectAssetTable] = useState<ITable | null>(null);
+  const [assetTableOptions, setAssetTableOptions] = useState<Array<{ value: string; label: string }>>([]);
 
   // 当 tableType 变化时，重置 activeTab 为对应的第一个 tab key
   useEffect(() => {
@@ -61,6 +65,68 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
       setActiveTab('upload-prompt');
     }
   }, [tableType]);
+
+  // 初始化时获取所有表并筛选资产表
+  useEffect(() => {
+    const initAssetTables = async () => {
+      try {
+        const tableList = await bitable.base.getTableList();
+
+        // 筛选包含 asset_id 字段的资产表
+        const assetTableList: ITable[] = [];
+        for (const table of tableList) {
+          const fieldMetaList = await table.getFieldMetaList();
+          const hasAssetId = fieldMetaList.some(field => ASSET_TABLE_FIELDS.includes(field.name));
+          if (hasAssetId) {
+            assetTableList.push(table);
+          }
+        }
+
+        setAssetTables(assetTableList);
+
+        // 构建资产表选项列表
+        const options = await Promise.all(
+          assetTableList.map(async (table) => ({
+            value: table.id,
+            label: await table.getName(),
+          }))
+        );
+        setAssetTableOptions(options);
+
+        // 查找当前表往前最近的资产表
+        const currentTableId = state.selectionInfo.tableId;
+
+        // 获取所有表的ID用于查找位置
+        const tableIds = await Promise.all(tableList.map(table => table.id));
+        const currentTableIndex = tableIds.indexOf(currentTableId || '');
+
+        // 获取所有资产表的ID
+        const assetTableIds = await Promise.all(assetTableList.map(table => table.id));
+
+        // 从当前表位置往前查找
+        let nearestAssetTable: ITable | null = null;
+        for (let i = currentTableIndex - 1; i >= 0; i--) {
+          const tableId = tableIds[i];
+          const assetTableIndex = assetTableIds.indexOf(tableId);
+          if (assetTableIndex !== -1) {
+            nearestAssetTable = assetTableList[assetTableIndex];
+            break;
+          }
+        }
+
+        // 如果往前没找到，则取第一个资产表（如果有）
+        if (!nearestAssetTable && assetTableList.length > 0) {
+          nearestAssetTable = assetTableList[0];
+        }
+
+        setCurrentSelectAssetTable(nearestAssetTable);
+      } catch (error) {
+        console.error('初始化资产表失败:', error);
+      }
+    };
+
+    initAssetTables();
+  }, [state.selectionInfo]);
 
   // 批量上传资产回调
   const onSubmitBatchAssets = useCallback(async (results: SelectedFile[]) => {
@@ -107,10 +173,64 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
         return;
       }
 
+      if (!currentSelectAssetTable) {
+        message.error(t('operation.noAssetTableSelected'));
+        return;
+      }
+
       // 目前只支持单文件，取第一个文件的ID
       const fileId = successfulFiles[0].result!.id;
 
-      const resp = await outerClient.feishuSplitShot({ fileId, table: { tableId: state.selectionInfo.tableId || '', tableToken: state.tableToken || '' } });
+      const assets: FeishuUAsset[] = [];
+
+      try {
+        // 找到资产表的所有记录
+        const fieldMetaList = await currentSelectAssetTable.getFieldMetaList();
+        const recordsResponse = await currentSelectAssetTable.getRecordsByPage({ pageSize: 100 });
+        const records = recordsResponse.records;
+
+        // 遍历记录，提取附件字段
+        for (const record of records) {
+          const asset = new FeishuUAsset({
+            name: '',
+            fileType: '',
+            fileToken: '',
+          });
+          for (const field of fieldMetaList) {
+
+
+            if (field.name === 'name') {
+              asset.name = formatCellValue(record.fields[field.id]);
+              continue;
+            }
+
+            // 只处理附件类型字段
+            if (field.name !== '图片附件' || field.type !== 17) { // 17 是附件字段类型
+              continue;
+            }
+
+            const cellValue = record.fields[field.id];
+
+            // 附件字段的值是 IOpenAttachment[] 类型
+            if (Array.isArray(cellValue)) {
+              for (const attachment of cellValue) {
+                if (attachment && typeof attachment === 'object' && 'token' in attachment) {
+                  asset.fileToken = attachment.token as string;
+                  asset.fileType = attachment.type as string;
+                }
+              }
+            }
+          }
+          if (asset.fileToken && asset.name) {
+            assets.push(asset);
+          }
+        }
+
+      } catch (error) {
+        console.error('获取资产表信息失败:', error);
+      }
+
+      const resp = await outerClient.feishuSplitShot({ fileId, assets, extractAssets: true, table: { tableId: state.selectionInfo.tableId || '', tableToken: state.tableToken || '' } });
       message.success(t('operation.promptSubmitSuccess'));
 
       return {
@@ -120,7 +240,7 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
     } catch (error) {
       message.error(t('operation.submitFailed', { error: error instanceof Error ? error.message : 'Unknown error' }));
     }
-  }, [state.selectionInfo.tableId, state.tableToken, t]);
+  }, [state.selectionInfo.tableId, state.tableToken, t, currentSelectAssetTable]);
 
   // Token 未配置时的提示
   if (disabled) {
@@ -232,12 +352,77 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
       key: 'batch-generate',
       label: t('operation.batchProcess'),
       children: (<div>
-        <BatchUploadPanel
-          accept={['xlsx']}
-          title={'批量生成prompt'}
-          disabled={disabled}
-          onSubmit={onSubmitBatchPrompt}
-        /></div>)
+        {/* 资产表选择器 */}
+        {assetTables.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <Space>
+              <Text style={{ fontSize: 14 }}>{t('operation.selectAssetTable')}:</Text>
+              <Select
+                style={{ width: 200 }}
+                value={currentSelectAssetTable?.id}
+                onChange={(value) => {
+                  // 根据 ID 查找对应的表对象
+                  const findTableById = async () => {
+                    for (const table of assetTables) {
+                      const tableId = table.id;
+                      if (tableId === value) {
+                        setCurrentSelectAssetTable(table);
+                        break;
+                      }
+                    }
+                  };
+                  findTableById();
+                }}
+                placeholder={t('operation.pleaseSelectAssetTable')}
+                options={assetTableOptions}
+              />
+            </Space>
+          </div>
+        )}
+
+        {assetTables.length === 0 && (
+          <Alert
+            message={t('operation.noAssetTableFound')}
+            description={t('operation.createAssetTableFirst')}
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
+        {/* 当没有选择资产表时，显示提示信息并禁用操作 */}
+        {!currentSelectAssetTable && assetTables.length > 0 && (
+          <Alert
+            message="请先选择资产表"
+            description="需要选择资产表后才能进行批量操作"
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
+        <CollapsibleSection
+          title="批量上传 Prompt 文件"
+          defaultExpanded={true}
+          style={{ marginBottom: 16 }}
+        >
+          <BatchUploadPanel
+            accept={['xlsx']}
+            disabled={disabled || !currentSelectAssetTable}
+            onSubmit={onSubmitBatchPrompt}
+          />
+        </CollapsibleSection>
+
+        <CollapsibleSection
+          title="批量生成操作"
+          defaultExpanded={false}
+        >
+          <BatchGeneration
+            disabled={disabled || !currentSelectAssetTable}
+            assetTableId={currentSelectAssetTable?.id}
+          />
+        </CollapsibleSection>
+      </div>)
     },
   ];
 
