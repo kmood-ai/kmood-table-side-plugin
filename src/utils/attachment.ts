@@ -1,4 +1,8 @@
-import { bitable, type IOpenAttachment } from "@lark-base-open/js-sdk";
+import {
+  bitable,
+  ImageQuality,
+  type IOpenAttachment,
+} from "@lark-base-open/js-sdk";
 import type { CellPosition } from "../types";
 
 /**
@@ -8,15 +12,17 @@ import type { CellPosition } from "../types";
  */
 export async function getImageUrlsByTokens(
   fileTokens: string[],
-  { fieldId, recordId, tableId }: CellPosition
+  { fieldId, recordId, tableId }: CellPosition,
+  quality?: ImageQuality
 ): Promise<string[]> {
   try {
     // 使用飞书多维表格 SDK 获取附件 URL
     const table = await bitable.base.getTableById(tableId);
-    const urls = await table.getCellAttachmentUrls(
+    const urls = await table.getCellThumbnailUrls(
       fileTokens,
       fieldId,
-      recordId
+      recordId,
+      quality || ImageQuality.Mid
     );
     return urls;
   } catch (error) {
@@ -32,11 +38,12 @@ export async function getImageUrlsByTokens(
  */
 export async function getAttachmentUrls(
   attachments: IOpenAttachment[],
-  cellPosition: CellPosition
+  cellPosition: CellPosition,
+  quality?: ImageQuality
 ): Promise<string[]> {
   try {
     const tokens = attachments.map((attachment) => attachment.token || "");
-    const urls = await getImageUrlsByTokens(tokens, cellPosition);
+    const urls = await getImageUrlsByTokens(tokens, cellPosition, quality);
     return urls;
   } catch (error) {
     console.error("Failed to get attachment URLs:", error);

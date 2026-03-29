@@ -26,14 +26,23 @@ import { useTable } from '../hooks/useTable';
 import type { RecordInfo, FieldInfo } from '../hooks/useTable';
 import { formatCellValue } from '../utils/table';
 import { useI18n } from '../i18n';
-import { bitable, type ICell, type IOpenAttachment } from '@lark-base-open/js-sdk';
-import { getAttachmentUrls } from '../utils';
+import { bitable, ImageQuality, type ICell, type IFieldMeta, type IOpenAttachment, type IRecord } from '@lark-base-open/js-sdk';
+import { ASSET_TABLE_ATTACHMENT_FIELD_NAME, ASSET_TABLE_NAME_FIELD_NAME, getAttachmentUrls, PRODUCTION_TABLE_UPLOAD_FIELD_NAME } from '../utils';
 
 const { Text, Paragraph } = Typography;
 
 interface RecordEditingProps {
   /** Token 未配置时传 true */
   disabled: boolean;
+  /**
+   * 获取资产表信息
+   */
+  getAssetTableInfo: () => Promise<[IRecord[], IFieldMeta[], string]>;
+}
+
+type SuggestionType = IOpenAttachment & {
+  source: 'local' | 'asset';
+  thumbnailUrl?: string;
 }
 
 const displayFields = [
@@ -52,7 +61,7 @@ const displayFields = [
  * - 使用 useTable hook 获取选中行的完整内容
  * - 以描述列表形式展示行数据
  */
-export default function RecordEditing({ disabled }: RecordEditingProps) {
+export default function RecordEditing({ disabled, getAssetTableInfo }: RecordEditingProps) {
   const { t } = useI18n();
   const { state, refresh } = useSelection();
   const { selectionInfo, tableName } = state;
@@ -66,7 +75,7 @@ export default function RecordEditing({ disabled }: RecordEditingProps) {
   // 状态管理
   const [loading, setLoading] = useState<boolean>(false);
   const [recordData, setRecordData] = useState<RecordInfo | null>(null);
-  const [fieldList, setFieldList] = useState<FieldInfo[]>([]);
+  const [fieldList, setFieldList] = useState<IFieldMeta[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // 编辑状态
@@ -81,25 +90,7 @@ export default function RecordEditing({ disabled }: RecordEditingProps) {
   const [cursorPosition, setCursorPosition] = useState<number>(0);
   const textAreaRef = useRef<any>(null);
 
-  // Mock 数据：联想列表
-  const mockSuggestions = {
-    all: [
-      { id: '1', name: 'logo设计图.png', type: 'local' },
-      { id: '2', name: '产品原型图.fig', type: 'local' },
-      { id: '3', name: '营销海报_v2.psd', type: 'asset' },
-      { id: '4', name: '用户指南.pdf', type: 'local' },
-      { id: '5', name: '品牌VI素材.zip', type: 'asset' },
-    ],
-    local: [
-      { id: '1', name: 'logo设计图.png', type: 'local' },
-      { id: '2', name: '产品原型图.fig', type: 'local' },
-      { id: '4', name: '用户指南.pdf', type: 'local' },
-    ],
-    asset: [
-      { id: '3', name: '营销海报_v2.psd', type: 'asset' },
-      { id: '5', name: '品牌VI素材.zip', type: 'asset' },
-    ],
-  };
+  const [suggestions, setSuggestions] = useState<SuggestionType[][]>([]);
 
   /**
    * 处理输入变化，检测触发字符
@@ -138,10 +129,10 @@ export default function RecordEditing({ disabled }: RecordEditingProps) {
    */
   const getFilteredSuggestions = () => {
     const list = currentTab === 'all'
-      ? mockSuggestions.all
+      ? suggestions.flat()
       : currentTab === 'local'
-        ? mockSuggestions.local
-        : mockSuggestions.asset;
+        ? suggestions[0] || []
+        : suggestions[1] || [];
 
     if (!suggestionKeyword) {
       return list;
@@ -205,7 +196,7 @@ export default function RecordEditing({ disabled }: RecordEditingProps) {
         return;
       }
       setLoading(true);
-      const urls = await getAttachmentUrls(attachments, { fieldId, recordId, tableId });
+      const urls = await getAttachmentUrls(attachments, { fieldId, recordId, tableId }, ImageQuality.Low);
       setThumbnailUrls(urls);
       setLoading(false);
     }, [recordId, tableId, fieldId, attachments]);
@@ -270,7 +261,7 @@ export default function RecordEditing({ disabled }: RecordEditingProps) {
         getRecord(currentRecordId),
       ]);
 
-      const displayFieldsList = displayFields.map((field) => fields.find((f) => f.name === field)).filter(Boolean) as FieldInfo[];
+      const displayFieldsList = displayFields.map((field) => fields.find((f) => f.name === field)).filter(Boolean) as IFieldMeta[];
 
       setFieldList(displayFieldsList);
       setRecordData(record);
@@ -301,11 +292,48 @@ export default function RecordEditing({ disabled }: RecordEditingProps) {
   /**
    * 打开编辑弹窗
    */
-  const handleEdit = useCallback((fieldId: string, currentValue: string) => {
+  const handleEdit = useCallback(async (fieldId: string, currentValue: string) => {
+    const [records, fieldMetaList, assetTableId] = await getAssetTableInfo();
+    const currentFieldList = await getFieldList();
+    const current = currentRecordId ? await getRecord(currentRecordId) : undefined;
+    const uploadField = currentFieldList.find(item => item.name === PRODUCTION_TABLE_UPLOAD_FIELD_NAME);
+    const uploadedList = current ? current.fields[uploadField?.id || ''] as IOpenAttachment[] : [];
+
+    const suggestions = [];
+    if (uploadedList.length > 0) {
+      const urls = await getAttachmentUrls(uploadedList, { fieldId: uploadField?.id || '', recordId: currentRecordId || '', tableId: selectionInfo.tableId || '' }, ImageQuality.Low);
+      suggestions.push(uploadedList.map((item, index) => ({ ...item, source: 'local', thumbnailUrl: urls[index] })) as SuggestionType[]);
+    } else {
+      suggestions.push([])
+    }
+
+    const nameField = fieldMetaList.find(item => item.name === ASSET_TABLE_NAME_FIELD_NAME);
+    const attachmentField = fieldMetaList.find(item => item.name === ASSET_TABLE_ATTACHMENT_FIELD_NAME);
+    if (nameField && attachmentField) {
+      const result = await Promise.all(records.map(async record => {
+        const name = formatCellValue(record.fields[nameField.id]);
+        const attachments = record.fields[attachmentField.id];
+        const attachment = (Array.isArray(attachments) && attachments.length > 0) ? attachments[0] : {};
+
+        // const thumbnailUrl = (typeof attachment === 'object' && (attachment as IOpenAttachment).token) ? await getAttachmentUrls([attachment as IOpenAttachment], { fieldId: attachmentField.id || '', recordId: record.recordId || '', tableId: assetTableId || '' }, ImageQuality.Low) : undefined;
+        return {
+          ...(typeof attachment === 'object' ? attachment : {}),
+          name: name as string,
+          // thumbnailUrl,
+          source: 'asset',
+        } as SuggestionType;
+      }));
+
+      suggestions.push(result.filter(item => item.name && item.token));
+    }
+
+    console.log(suggestions);
+
+    setSuggestions(suggestions);
     setEditingFieldId(fieldId);
     setEditingValue(currentValue || '');
     setIsEditModalVisible(true);
-  }, []);
+  }, [currentRecordId, getAssetTableInfo, getFieldList, getRecord, selectionInfo.tableId]);
 
   /**
    * 关闭编辑弹窗
@@ -566,7 +594,7 @@ export default function RecordEditing({ disabled }: RecordEditingProps) {
                               <FileTextOutlined />
                               <Text>{item.name}</Text>
                               <Text type="secondary" style={{ fontSize: 12 }}>
-                                {item.type === 'local' ? '本地文件' : '资产表'}
+                                {item.source === 'local' ? '本地文件' : '资产表'}
                               </Text>
                             </Space>
                           </List.Item>

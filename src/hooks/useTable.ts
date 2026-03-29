@@ -22,7 +22,6 @@ export interface FieldInfo {
   type: FieldType;
   isPrimary: boolean;
   description?: string;
-  original: IFieldMeta;
 }
 
 /**

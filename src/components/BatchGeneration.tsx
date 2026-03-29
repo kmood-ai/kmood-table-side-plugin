@@ -91,8 +91,9 @@ export default function BatchGeneration({ disabled, assetTableId }: BatchGenerat
       const fieldMetaList = await table.getFieldMetaList();
 
       // 查找 prompt 和状态字段
-      const promptField = fieldMetaList.find(f => f.name === 'prompt' || f.name.toLowerCase().includes('prompt'));
-      const statusField = fieldMetaList.find(f => f.name === '状态' || f.name === 'status' || f.name.toLowerCase().includes('status'));
+      const promptField = fieldMetaList.find(f => f.name === PRODUCTION_TABLE_PROMPT_FIELD_NAME);
+      const statusField = fieldMetaList.find(f => f.name === PRODUCTION_TABLE_STATUS_FIELD_NAME);
+      const idField = fieldMetaList.find(f => f.name === PRODUCTION_TABLE_ID_FIELD_NAME);
 
       if (!promptField) {
         console.warn('BatchGeneration: 未找到 prompt 字段');
@@ -108,12 +109,14 @@ export default function BatchGeneration({ disabled, assetTableId }: BatchGenerat
       // 过滤可提交的记录
       let count = 0;
       for (const record of records) {
-        // 检查 prompt 字段是否不为空
+        // 检查 prompt 和 id 字段是否不为空
         const promptValue = record.fields[promptField.id];
+        const idValue = record.fields[idField?.id || ''];
 
         const promptText = formatCellValue(promptValue);
+        const idText = formatCellValue(idValue);
 
-        if (!promptText || promptText.trim() === '') {
+        if (!promptText || promptText.trim() === '' || !idText || idText.trim() === '') {
           continue;
         }
 

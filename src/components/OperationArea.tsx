@@ -14,7 +14,7 @@ import {
   AppstoreOutlined,
   TableOutlined,
 } from '@ant-design/icons';
-import { bitable, type ITable } from '@lark-base-open/js-sdk';
+import { bitable, type IFieldMeta, type IRecord, type ITable } from '@lark-base-open/js-sdk';
 import { useTableType } from '../hooks/useTableType';
 import { getTableTypeLabelKey, getTableTypeColor, ASSET_TABLE_FIELDS, PRODUCTION_TABLE_FIELDS } from '../utils/tableTypeRules';
 import BatchUploadPanel from './BatchUploadPanel';
@@ -128,6 +128,18 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
     initAssetTables();
   }, [state.selectionInfo]);
 
+  const getAssetTableInfo = useCallback(async () => {
+    if (!currentSelectAssetTable) {
+      return [[], [], ''] as [IRecord[], IFieldMeta[], string];
+    }
+    // 找到资产表的所有记录
+    const fieldMetaList = await currentSelectAssetTable.getFieldMetaList();
+    const recordsResponse = await currentSelectAssetTable.getRecordsByPage({ pageSize: 100 });
+    const records = recordsResponse.records;
+
+    return [records, fieldMetaList, currentSelectAssetTable.id] as [IRecord[], IFieldMeta[], string];
+  }, [currentSelectAssetTable]);
+
   // 批量上传资产回调
   const onSubmitBatchAssets = useCallback(async (results: SelectedFile[]) => {
     try {
@@ -184,10 +196,7 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
       const assets: FeishuUAsset[] = [];
 
       try {
-        // 找到资产表的所有记录
-        const fieldMetaList = await currentSelectAssetTable.getFieldMetaList();
-        const recordsResponse = await currentSelectAssetTable.getRecordsByPage({ pageSize: 100 });
-        const records = recordsResponse.records;
+        const [records, fieldMetaList] = await getAssetTableInfo();
 
         // 遍历记录，提取附件字段
         for (const record of records) {
@@ -240,7 +249,7 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
     } catch (error) {
       message.error(t('operation.submitFailed', { error: error instanceof Error ? error.message : 'Unknown error' }));
     }
-  }, [state.selectionInfo.tableId, state.tableToken, t, currentSelectAssetTable]);
+  }, [state.selectionInfo.tableId, state.tableToken, t, currentSelectAssetTable, getAssetTableInfo]);
 
   // Token 未配置时的提示
   if (disabled) {
@@ -345,6 +354,7 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
       children: (
         <RecordEditing
           disabled={disabled}
+          getAssetTableInfo={getAssetTableInfo}
         />
       ),
     },
@@ -352,54 +362,7 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
       key: 'batch-generate',
       label: t('operation.batchProcess'),
       children: (<div>
-        {/* 资产表选择器 */}
-        {assetTables.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <Space>
-              <Text style={{ fontSize: 14 }}>{t('operation.selectAssetTable')}:</Text>
-              <Select
-                style={{ width: 200 }}
-                value={currentSelectAssetTable?.id}
-                onChange={(value) => {
-                  // 根据 ID 查找对应的表对象
-                  const findTableById = async () => {
-                    for (const table of assetTables) {
-                      const tableId = table.id;
-                      if (tableId === value) {
-                        setCurrentSelectAssetTable(table);
-                        break;
-                      }
-                    }
-                  };
-                  findTableById();
-                }}
-                placeholder={t('operation.pleaseSelectAssetTable')}
-                options={assetTableOptions}
-              />
-            </Space>
-          </div>
-        )}
 
-        {assetTables.length === 0 && (
-          <Alert
-            message={t('operation.noAssetTableFound')}
-            description={t('operation.createAssetTableFirst')}
-            type="warning"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
-
-        {/* 当没有选择资产表时，显示提示信息并禁用操作 */}
-        {!currentSelectAssetTable && assetTables.length > 0 && (
-          <Alert
-            message="请先选择资产表"
-            description="需要选择资产表后才能进行批量操作"
-            type="warning"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
 
         <CollapsibleSection
           title="批量上传 Prompt 文件"
@@ -443,6 +406,54 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
         body: { padding: '12px 16px' },
       }}
     >
+      {/* 资产表选择器 */}
+      {assetTables.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <Space>
+            <Text style={{ fontSize: 14 }}>{t('operation.selectAssetTable')}:</Text>
+            <Select
+              style={{ width: 200 }}
+              value={currentSelectAssetTable?.id}
+              onChange={(value) => {
+                // 根据 ID 查找对应的表对象
+                const findTableById = async () => {
+                  for (const table of assetTables) {
+                    const tableId = table.id;
+                    if (tableId === value) {
+                      setCurrentSelectAssetTable(table);
+                      break;
+                    }
+                  }
+                };
+                findTableById();
+              }}
+              placeholder={t('operation.pleaseSelectAssetTable')}
+              options={assetTableOptions}
+            />
+          </Space>
+        </div>
+      )}
+
+      {assetTables.length === 0 && (
+        <Alert
+          message={t('operation.noAssetTableFound')}
+          description={t('operation.createAssetTableFirst')}
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {/* 当没有选择资产表时，显示提示信息并禁用操作 */}
+      {!currentSelectAssetTable && assetTables.length > 0 && (
+        <Alert
+          message="请先选择资产表"
+          description="需要选择资产表后才能进行批量操作"
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
