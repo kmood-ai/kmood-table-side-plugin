@@ -8,12 +8,6 @@ import {
   Descriptions,
   Button,
   Empty,
-  Modal,
-  Input,
-  message,
-  Tabs,
-  List,
-  Popover,
   Image,
 } from 'antd';
 import {
@@ -26,8 +20,10 @@ import { useTable } from '../hooks/useTable';
 import type { RecordInfo, FieldInfo } from '../hooks/useTable';
 import { formatCellValue } from '../utils/table';
 import { useI18n } from '../i18n';
-import { bitable, ImageQuality, type ICell, type IFieldMeta, type IOpenAttachment, type IRecord } from '@lark-base-open/js-sdk';
-import { ASSET_TABLE_ATTACHMENT_FIELD_NAME, ASSET_TABLE_NAME_FIELD_NAME, getAttachmentUrls, PRODUCTION_TABLE_UPLOAD_FIELD_NAME } from '../utils';
+import { bitable, ImageQuality, type IAttachmentField, type ICell, type IFieldMeta, type IOpenAttachment, type IRecord } from '@lark-base-open/js-sdk';
+import { ASSET_TABLE_ATTACHMENT_FIELD_NAME, ASSET_TABLE_NAME_FIELD_NAME, getAttachmentUrls, PRODUCTION_TABLE_ASSET_IMAGE_FIELD_NAME, PRODUCTION_TABLE_UPLOAD_FIELD_NAME } from '../utils';
+import type { CellPosition } from '../types';
+import EditingModal, { type SuggestionType } from './EditingModal';
 
 const { Text, Paragraph } = Typography;
 
@@ -38,11 +34,6 @@ interface RecordEditingProps {
    * 获取资产表信息
    */
   getAssetTableInfo: () => Promise<[IRecord[], IFieldMeta[], string]>;
-}
-
-type SuggestionType = IOpenAttachment & {
-  source: 'local' | 'asset';
-  thumbnailUrl?: string;
 }
 
 const displayFields = [
@@ -66,6 +57,7 @@ export default function RecordEditing({ disabled, getAssetTableInfo }: RecordEdi
   const { state, refresh } = useSelection();
   const { selectionInfo, tableName } = state;
   const {
+    getTable,
     getRecord,
     getFieldList,
     currentRecordId,
@@ -83,95 +75,7 @@ export default function RecordEditing({ disabled, getAssetTableInfo }: RecordEdi
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
 
-  // 联想面板状态
-  const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
-  const [suggestionKeyword, setSuggestionKeyword] = useState<string>('');
-  const [currentTab, setCurrentTab] = useState<string>('all');
-  const [cursorPosition, setCursorPosition] = useState<number>(0);
-  const textAreaRef = useRef<any>(null);
-
   const [suggestions, setSuggestions] = useState<SuggestionType[][]>([]);
-
-  /**
-   * 处理输入变化，检测触发字符
-   */
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    const cursorPos = e.target.selectionStart || 0;
-
-    setEditingValue(value);
-    setCursorPosition(cursorPos);
-
-    // 检测最近的触发字符 '@' 或 '【'
-    const textBeforeCursor = value.substring(0, cursorPos);
-    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    const lastBracketIndex = textBeforeCursor.lastIndexOf('【');
-    const triggerIndex = Math.max(lastAtIndex, lastBracketIndex);
-
-    if (triggerIndex !== -1) {
-      // 提取关键词（触发字符之后到光标之间的文本）
-      const keyword = textBeforeCursor.substring(triggerIndex + 1);
-
-      // 如果关键词中没有空格或右括号，显示联想面板
-      if (!keyword.includes(' ') && !keyword.includes('】')) {
-        setSuggestionKeyword(keyword);
-        setShowSuggestions(true);
-      } else {
-        setShowSuggestions(false);
-      }
-    } else {
-      setShowSuggestions(false);
-    }
-  };
-
-  /**
-   * 过滤建议列表
-   */
-  const getFilteredSuggestions = () => {
-    const list = currentTab === 'all'
-      ? suggestions.flat()
-      : currentTab === 'local'
-        ? suggestions[0] || []
-        : suggestions[1] || [];
-
-    if (!suggestionKeyword) {
-      return list;
-    }
-
-    return list.filter(item =>
-      item.name.toLowerCase().includes(suggestionKeyword.toLowerCase())
-    );
-  };
-
-  /**
-   * 处理选择联想项
-   */
-  const handleSelectSuggestion = (itemName: string) => {
-    const textBeforeCursor = editingValue.substring(0, cursorPosition);
-    const textAfterCursor = editingValue.substring(cursorPosition);
-
-    // 找到最近的触发字符位置
-    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    const lastBracketIndex = textBeforeCursor.lastIndexOf('【');
-    const triggerIndex = Math.max(lastAtIndex, lastBracketIndex);
-
-    // 替换触发字符和关键词为完整的标签
-    const newTextBefore = textBeforeCursor.substring(0, triggerIndex);
-    const insertText = `【${itemName}】`;
-    const newValue = newTextBefore + insertText + textAfterCursor;
-
-    setEditingValue(newValue);
-    setShowSuggestions(false);
-
-    // 将光标移动到插入内容之后
-    setTimeout(() => {
-      if (textAreaRef?.current) {
-        const newCursorPos = newTextBefore.length + insertText.length;
-        textAreaRef.current.focus();
-        textAreaRef.current.setSelectionRange(newCursorPos, newCursorPos);
-      }
-    }, 0);
-  };
 
   /**
    * 附件列表组件（支持异步加载缩略图）
@@ -189,9 +93,9 @@ export default function RecordEditing({ disabled, getAssetTableInfo }: RecordEdi
   }) => {
     const [thumbnailUrls, setThumbnailUrls] = useState<(string | null)[]>([]);
     const [loading, setLoading] = useState(false);
+    const prevCellPositionRef = useRef<CellPosition>({ fieldId: '', recordId: '', tableId: '' });
 
     const getThumbnailUrls = useCallback(async () => {
-
       if (!recordId || !tableId || !fieldId || !attachments || attachments.length === 0) {
         return;
       }
@@ -199,9 +103,13 @@ export default function RecordEditing({ disabled, getAssetTableInfo }: RecordEdi
       const urls = await getAttachmentUrls(attachments, { fieldId, recordId, tableId }, ImageQuality.Low);
       setThumbnailUrls(urls);
       setLoading(false);
-    }, [recordId, tableId, fieldId, attachments]);
+    }, [attachments, fieldId, recordId, tableId]);
 
     useEffect(() => {
+      if (prevCellPositionRef.current.fieldId === fieldId && prevCellPositionRef.current.recordId === recordId && prevCellPositionRef.current.tableId === tableId) {
+        return;
+      }
+      prevCellPositionRef.current = { fieldId, recordId: recordId || '', tableId: tableId || '' };
       getThumbnailUrls();
     }, [recordId, tableId, fieldId]);
 
@@ -300,9 +208,8 @@ export default function RecordEditing({ disabled, getAssetTableInfo }: RecordEdi
     const uploadedList = current ? current.fields[uploadField?.id || ''] as IOpenAttachment[] : [];
 
     const suggestions = [];
-    if (uploadedList.length > 0) {
-      const urls = await getAttachmentUrls(uploadedList, { fieldId: uploadField?.id || '', recordId: currentRecordId || '', tableId: selectionInfo.tableId || '' }, ImageQuality.Low);
-      suggestions.push(uploadedList.map((item, index) => ({ ...item, source: 'local', thumbnailUrl: urls[index] })) as SuggestionType[]);
+    if (Array.isArray(uploadedList) && uploadedList.length > 0) {
+      suggestions.push(uploadedList.map((item) => ({ ...item, displayName: item.name, source: 'local', cellPosition: { fieldId: uploadField?.id || '', recordId: currentRecordId || '', tableId: selectionInfo.tableId || '' } })) as SuggestionType[]);
     } else {
       suggestions.push([])
     }
@@ -315,19 +222,16 @@ export default function RecordEditing({ disabled, getAssetTableInfo }: RecordEdi
         const attachments = record.fields[attachmentField.id];
         const attachment = (Array.isArray(attachments) && attachments.length > 0) ? attachments[0] : {};
 
-        // const thumbnailUrl = (typeof attachment === 'object' && (attachment as IOpenAttachment).token) ? await getAttachmentUrls([attachment as IOpenAttachment], { fieldId: attachmentField.id || '', recordId: record.recordId || '', tableId: assetTableId || '' }, ImageQuality.Low) : undefined;
         return {
           ...(typeof attachment === 'object' ? attachment : {}),
-          name: name as string,
-          // thumbnailUrl,
+          displayName: name as string,
           source: 'asset',
+          cellPosition: { fieldId: attachmentField.id || '', recordId: record.recordId || '', tableId: assetTableId || '' },
         } as SuggestionType;
       }));
 
       suggestions.push(result.filter(item => item.name && item.token));
     }
-
-    console.log(suggestions);
 
     setSuggestions(suggestions);
     setEditingFieldId(fieldId);
@@ -347,33 +251,47 @@ export default function RecordEditing({ disabled, getAssetTableInfo }: RecordEdi
   /**
    * 保存编辑内容
    */
-  const handleSaveEdit = useCallback(async () => {
+  const handleSaveEdit = useCallback(async (newValue: string, selectedSuggestions: (IOpenAttachment & {
+    source: 'local' | 'asset';
+    thumbnailUrl?: string;
+    cellPosition?: CellPosition;
+  })[]) => {
     if (!editingFieldId || !currentRecordId || !selectionInfo.tableId) {
       return;
     }
 
-    try {
-      // 调用 setCell 更新单元格值
-      await setCell(
-        editingFieldId,
-        currentRecordId,
-        editingValue,
-        selectionInfo.tableId,
-      );
+    // 调用 setCell 更新单元格值
+    await setCell(
+      editingFieldId,
+      currentRecordId,
+      newValue,
+      selectionInfo.tableId,
+    );
 
-      message.success(t('record.updateSuccess'));
+    const table = await getTable(selectionInfo.tableId);
+    const fields = await getFieldList();
+    const assetTableField = fields.find(item => item.name === PRODUCTION_TABLE_ASSET_IMAGE_FIELD_NAME)?.id;
+    const assetSuggestions = selectedSuggestions.filter(s => s.source === 'asset');
 
-      // 关闭弹窗
-      handleCancelEdit();
-
-      // 重新加载数据
-      await loadRecordData();
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      message.error(t('record.updateFailed') + ': ' + errorMsg);
-      console.error('RecordEditing: 更新单元格失败', err);
+    if (assetTableField) {
+      const field = await table.getFieldById(assetTableField) as IAttachmentField;
+      const attachments = assetSuggestions.map(s => ({
+        source: s.source,
+        token: s.token,
+        name: s.name,
+        type: s.type,
+        size: s.size,
+        timeStamp: s.timeStamp,
+      }) as IOpenAttachment);
+      await field.setValue(currentRecordId, attachments);
     }
-  }, [editingFieldId, currentRecordId, selectionInfo.tableId, editingValue, setCell, t, handleCancelEdit, loadRecordData]);
+
+    // 关闭弹窗
+    handleCancelEdit();
+
+    // 重新加载数据
+    await loadRecordData();
+  }, [editingFieldId, currentRecordId, selectionInfo.tableId, setCell, getTable, getFieldList, handleCancelEdit, loadRecordData]);
 
   /**
    * Token 未配置时的提示
@@ -501,7 +419,7 @@ export default function RecordEditing({ disabled, getAssetTableInfo }: RecordEdi
                 <Space direction="vertical" style={{ width: '100%' }}>
                   {/* 展示附件内容 */}
                   {fieldType === 17 ? (
-                    <AttachmentList attachments={cellValue as unknown as IOpenAttachment[]} fieldId={field.id} recordId={currentRecordId} tableId={selectionInfo.tableId} />
+                    <AttachmentList key={field.id + currentRecordId} attachments={cellValue as unknown as IOpenAttachment[]} fieldId={field.id} recordId={currentRecordId} tableId={selectionInfo.tableId} />
                   ) : formattedValue ? (
                     <Paragraph
                       ellipsis={{
@@ -538,130 +456,13 @@ export default function RecordEditing({ disabled, getAssetTableInfo }: RecordEdi
       </Card>
 
       {/* 编辑弹窗 */}
-      <Modal
-        title={t('record.editPrompt')}
-        open={isEditModalVisible}
-        onOk={handleSaveEdit}
+      <EditingModal
+        visible={isEditModalVisible}
+        value={editingValue}
+        suggestions={suggestions}
         onCancel={handleCancelEdit}
-        width={600}
-        okText={t('record.save')}
-        cancelText={t('record.cancel')}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Input.TextArea
-            ref={textAreaRef}
-            value={editingValue}
-            onChange={handleInputChange}
-            rows={8}
-            placeholder={t('record.enterPrompt')}
-          />
-
-          {/* 联想面板 */}
-          {showSuggestions && (
-            <Card
-              size="small"
-              title="资源联想"
-              style={{
-                maxHeight: 300,
-                overflow: 'auto',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-              }}
-            >
-              <Tabs
-                activeKey={currentTab}
-                onChange={setCurrentTab}
-                size="small"
-                items={[
-                  {
-                    key: 'all',
-                    label: '全部',
-                    children: (
-                      <List
-                        size="small"
-                        dataSource={getFilteredSuggestions()}
-                        renderItem={(item) => (
-                          <List.Item
-                            style={{ cursor: 'pointer', padding: '8px 12px' }}
-                            onClick={() => handleSelectSuggestion(item.name)}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#f0f0f0';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }}
-                          >
-                            <Space>
-                              <FileTextOutlined />
-                              <Text>{item.name}</Text>
-                              <Text type="secondary" style={{ fontSize: 12 }}>
-                                {item.source === 'local' ? '本地文件' : '资产表'}
-                              </Text>
-                            </Space>
-                          </List.Item>
-                        )}
-                      />
-                    ),
-                  },
-                  {
-                    key: 'local',
-                    label: '本地文件',
-                    children: (
-                      <List
-                        size="small"
-                        dataSource={getFilteredSuggestions()}
-                        renderItem={(item) => (
-                          <List.Item
-                            style={{ cursor: 'pointer', padding: '8px 12px' }}
-                            onClick={() => handleSelectSuggestion(item.name)}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#f0f0f0';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }}
-                          >
-                            <Space>
-                              <FileTextOutlined />
-                              <Text>{item.name}</Text>
-                            </Space>
-                          </List.Item>
-                        )}
-                      />
-                    ),
-                  },
-                  {
-                    key: 'asset',
-                    label: '资产表',
-                    children: (
-                      <List
-                        size="small"
-                        dataSource={getFilteredSuggestions()}
-                        renderItem={(item) => (
-                          <List.Item
-                            style={{ cursor: 'pointer', padding: '8px 12px' }}
-                            onClick={() => handleSelectSuggestion(item.name)}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#f0f0f0';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }}
-                          >
-                            <Space>
-                              <FileTextOutlined />
-                              <Text>{item.name}</Text>
-                            </Space>
-                          </List.Item>
-                        )}
-                      />
-                    ),
-                  },
-                ]}
-              />
-            </Card>
-          )}
-        </Space>
-      </Modal>
+        onSave={handleSaveEdit}
+      />
     </Space>
   );
 }

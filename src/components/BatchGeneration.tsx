@@ -226,8 +226,11 @@ export default function BatchGeneration({ disabled, assetTableId }: BatchGenerat
 
             for (const attachment of assetImageValue) {
               const targetRecord = records.find(r => {
-                return (r.fields[assetAttachmentField?.id || ''] as IOpenAttachment[])?.[0].name === attachment.name;
+                return formatCellValue(r.fields[assetNameField?.id || '']) === attachment.name ||
+                  (r.fields[assetAttachmentField?.id || ''] as IOpenAttachment[])?.[0].name === attachment.name ||
+                  (r.fields[assetAttachmentField?.id || ''] as IOpenAttachment[])?.[0].token === attachment.token;
               });
+
               if (!targetRecord?.fields[assetNameField?.id || '']) {
                 continue;
               }
