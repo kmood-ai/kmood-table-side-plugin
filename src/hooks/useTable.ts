@@ -6,6 +6,8 @@ import {
   type ICell,
   FieldType,
   type IOpenCellValue,
+  type IAddFieldConfig,
+  type IFieldRes,
 } from "@lark-base-open/js-sdk";
 import { useSelection } from "./useSelection";
 
@@ -362,32 +364,25 @@ export function useTable() {
    * @param tableId 表格 ID，不传则使用当前选中的表格
    * @returns 新增字段的 ID
    */
-  // const addField = useCallback(
-  //   async (config: AddFieldConfig, tableId?: string): Promise<string> => {
-  //     try {
-  //       const targetTableId = tableId || selectionInfo.tableId;
-  //       if (!targetTableId) {
-  //         throw new Error("未指定表格 ID 且当前未选中表格");
-  //       }
+  const addField = useCallback(
+    async (config: IAddFieldConfig, tableId?: string): Promise<IFieldRes> => {
+      try {
+        const targetTableId = tableId || selectionInfo.tableId;
+        if (!targetTableId) {
+          throw new Error("未指定表格 ID 且当前未选中表格");
+        }
 
-  //       const table = await getTable(targetTableId);
-  //       const fieldId = await table.addField({
-  //         type: config.type,
-  //         name: config.name,
-  //         description: config.description
-  //           ? { content: config.description }
-  //           : undefined,
-  //         property: config.property,
-  //       });
+        const table = await getTable(targetTableId);
+        const field = await table.addField(config);
 
-  //       return "";
-  //     } catch (error) {
-  //       console.error("useTable.addField: 新增字段失败", error);
-  //       throw error;
-  //     }
-  //   },
-  //   [selectionInfo, getTable]
-  // );
+        return field;
+      } catch (error) {
+        console.error("useTable.addField: 新增字段失败", error);
+        throw error;
+      }
+    },
+    [selectionInfo, getTable]
+  );
 
   /**
    * 1.3 更新字段配置
@@ -808,7 +803,7 @@ export function useTable() {
     /** 更新字段名称 */
     updateFieldName,
     /** 新增字段 */
-    // addField,
+    addField,
     /** 更新字段配置 */
     updateField,
     /** 删除字段 */

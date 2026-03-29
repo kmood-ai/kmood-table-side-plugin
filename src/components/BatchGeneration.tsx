@@ -18,16 +18,16 @@ import {
   CloseCircleOutlined,
   LoadingOutlined,
 } from '@ant-design/icons';
-import { bitable, type IOpenAttachment, type IOpenCellValue, type ISelectFieldOption } from '@lark-base-open/js-sdk';
+import { bitable, FieldType, type IAddFieldConfig, type IFieldMeta, type IOpenAttachment, type IOpenCellValue, type ISelectFieldOption } from '@lark-base-open/js-sdk';
 import { outerClient } from '../services';
 import { useI18n } from '../i18n';
 import { formatCellValue } from '../utils/table';
 import { useSelection, useTable } from '../hooks';
 import { PRODUCTION_TABLE_ID_FIELD_NAME, PRODUCTION_TABLE_PROMPT_FIELD_NAME } from '../utils';
-import { ASSET_TABLE_ATTACHMENT_FIELD_NAME, ASSET_TABLE_ID_FIELD_NAME, ASSET_TABLE_NAME_FIELD_NAME, PRODUCTION_TABLE_ASSET_IMAGE_FIELD_NAME, PRODUCTION_TABLE_DURATION_FIELD_NAME, PRODUCTION_TABLE_MODE_CH_FIELD_NAME, PRODUCTION_TABLE_STATUS_FIELD_NAME, PRODUCTION_TABLE_UPLOAD_FIELD_NAME } from '../utils/tableTypeRules';
+import { ASSET_TABLE_ATTACHMENT_FIELD_NAME, ASSET_TABLE_ID_FIELD_NAME, ASSET_TABLE_NAME_FIELD_NAME, PRODUCTION_TABLE_ASSET_IMAGE_FIELD_NAME, PRODUCTION_TABLE_DURATION_FIELD_NAME, PRODUCTION_TABLE_MODE_CH_FIELD_NAME, PRODUCTION_TABLE_POINT_FIELD_NAME, PRODUCTION_TABLE_REQUEST_MESSAGE_FIELD_NAME, PRODUCTION_TABLE_RETURN_POINT_FIELD_NAME, PRODUCTION_TABLE_STATUS_FIELD_NAME, PRODUCTION_TABLE_TRACE_FIELD_NAME, PRODUCTION_TABLE_UPDATE_TIME_FIELD_NAME, PRODUCTION_TABLE_UPLOAD_FIELD_NAME } from '../utils/tableTypeRules';
 import { PRODUCTION_TABLE_RATIO_FIELD_NAME } from '../utils/tableTypeRules';
 import { PRODUCTION_TABLE_RESOLUTION_FIELD_NAME } from '../utils/tableTypeRules';
-import { Media } from '../../generated/ipimage/shotify/outer_pb';
+import { Media, ShotInfoTaskStatus } from '../../generated/ipimage/shotify/outer_pb';
 
 const { Text } = Typography;
 
@@ -76,7 +76,7 @@ export default function BatchGeneration({ disabled, assetTableId }: BatchGenerat
   const [recordIdsAvailable, setRecordIdsAvailable] = useState<string[]>([]);
   const [isLoadingCount, setIsLoadingCount] = useState<boolean>(true);
 
-  const { getRecord, getFieldList, getTable, updateRecord } = useTable();
+  const { getRecord, getFieldList, getTable, updateRecord, addField } = useTable();
 
   /**
    * 统计可提交任务数量
@@ -179,8 +179,6 @@ export default function BatchGeneration({ disabled, assetTableId }: BatchGenerat
       const modeChField = fieldMetaList.find(f => f.name === PRODUCTION_TABLE_MODE_CH_FIELD_NAME);
       const uploadField = fieldMetaList.find(f => f.name === PRODUCTION_TABLE_UPLOAD_FIELD_NAME);
       const assetImageField = fieldMetaList.find(f => f.name === PRODUCTION_TABLE_ASSET_IMAGE_FIELD_NAME);
-
-
 
       // 根据 recordIdsAvailable 构建参数
       for (let i = 0; i < recordIdsAvailable.length; i++) {
@@ -288,9 +286,8 @@ export default function BatchGeneration({ disabled, assetTableId }: BatchGenerat
 
       // 解析响应结果
       const results: TaskResult[] = (resp.shotAsyncReses || []).map((item, index) => ({
-        rowId: index + 1,
-        taskId: item.taskId || undefined,
-        status: item.taskId ? 'success' : 'error',
+        rowId: item.id,
+        status: item.shotInfoTaskStatus === ShotInfoTaskStatus.SHOT_INFO_STATUS_SUBMIT_SUCCESS ? 'success' : 'error',
         message: item.taskId ? t('batchGen.taskSubmitted') : (item.reason || t('operation.submitFailed', { error: 'unknown' })),
         traceId: item.traceId || undefined,
       }));
@@ -306,46 +303,95 @@ export default function BatchGeneration({ disabled, assetTableId }: BatchGenerat
         errorCount,
       });
 
+      // 获取状态字段
+      let traceField = fieldMetaList.find(f => f.name === PRODUCTION_TABLE_TRACE_FIELD_NAME);
+      const returnPointField = fieldMetaList.find(f => f.name === PRODUCTION_TABLE_RETURN_POINT_FIELD_NAME);
+      const updateTimeField = fieldMetaList.find(f => f.name === PRODUCTION_TABLE_UPDATE_TIME_FIELD_NAME);
+      const messageField = fieldMetaList.find(f => f.name === PRODUCTION_TABLE_REQUEST_MESSAGE_FIELD_NAME);
+      const pointField = fieldMetaList.find(f => f.name === PRODUCTION_TABLE_POINT_FIELD_NAME);
+      const statusField = fieldMetaList.find(f => f.name === PRODUCTION_TABLE_STATUS_FIELD_NAME);
+      const options = (statusField?.property as unknown as { options: ISelectFieldOption[] })?.options;
+
+
       if (successCount > 0) {
         message.success(t('batchGen.submitSuccessToast', { count: successCount }));
-        // 将状态回写到表格中
-        try {
-          // 获取状态字段
-          const fieldMetaList = await getFieldList();
-
-          const statusField = fieldMetaList.find(f => f.name === PRODUCTION_TABLE_STATUS_FIELD_NAME);
-          const options = (statusField?.property as unknown as { options: ISelectFieldOption[] })?.options;
-
-          const waitingOption = options?.find(o => o.name === '生成中') || undefined;
-
-          if (statusField) {
-            // 获取成功提交的 recordId 列表
-            const successfulRecordIds = resp.shotAsyncReses
-              .filter(result => Boolean(result.taskId))
-              .map((result) => updateRecordIds.find(r => r.id === result.id)?.recordId)
-              .filter(Boolean);
-
-            // 批量更新状态为"生成中"
-            const updatePromises = successfulRecordIds.map(async (recordId) => {
-              if (recordId) {
-                return updateRecord(recordId, {
-                  [statusField.id]: {
-                    id: waitingOption?.id || '',
-                    text: waitingOption?.name || '',
-                  } as IOpenCellValue
-                })
-              }
-              return Promise.resolve();
-            });
-
-            await Promise.allSettled(updatePromises);
-          }
-        } catch (error) {
-          // console.error('BatchGeneration: 状态回写失败', error);
-        }
       }
+
       if (errorCount > 0) {
         message.warning(t('batchGen.partialFailedToast', { count: errorCount }));
+      }
+
+      if (!traceField) {
+        // 新增列
+        const addFieldConfig: IAddFieldConfig = {
+          name: PRODUCTION_TABLE_TRACE_FIELD_NAME,
+          type: FieldType.Text,
+        };
+
+        const field = await addField(addFieldConfig);
+        traceField = {
+          id: field,
+          name: PRODUCTION_TABLE_TRACE_FIELD_NAME,
+          type: FieldType.Text,
+        } as IFieldMeta;
+      }
+
+      const waitingOption = options?.find(o => o.name === '生成中') || undefined;
+      const successOption = options?.find(o => o.name === '生成成功') || undefined;
+      const errorOption = options?.find(o => o.name === '生成失败') || undefined;
+
+      // 将状态回写到表格中
+      try {
+        // 获取成功提交的 recordId 列表
+        const callBackRecords = resp.shotAsyncReses
+          .map((result) => {
+            const recordId = updateRecordIds.find(r => r.id === result.id)?.recordId;
+            if (recordId) {
+              return {
+                recordId,
+                result,
+              };
+            }
+            return undefined;
+          })
+          .filter(Boolean);
+
+        // 批量更新状态为"生成中"
+        const updatePromises = callBackRecords.map(async (record) => {
+          if (record?.recordId) {
+
+            const statusValue = record.result.shotInfoTaskStatus === ShotInfoTaskStatus.SHOT_INFO_STATUS_SUBMIT_SUCCESS ? waitingOption : record.result.shotInfoTaskStatus === ShotInfoTaskStatus.SHOT_INFO_STATUS_GEN_SUCCESS ? successOption : record.result.shotInfoTaskStatus === ShotInfoTaskStatus.SHOT_INFO_STATUS_GEN_FAILED ? errorOption : undefined;
+
+            return updateRecord(record.recordId, {
+              ...(statusField && statusValue ? {
+                [statusField.id]: {
+                  id: statusValue?.id || '',
+                  text: statusValue?.name || '',
+                } as IOpenCellValue
+              } : {}),
+              ...(traceField ? {
+                [traceField.id]: record.result.traceId as IOpenCellValue
+              } : {}),
+              ...(messageField ? {
+                [messageField.id]: record.result.reason as IOpenCellValue
+              } : {}),
+              ...(pointField ? {
+                [pointField.id]: record.result.deductPoints as IOpenCellValue
+              } : {}),
+              ...(returnPointField ? {
+                [returnPointField.id]: record.result.revertPoints as IOpenCellValue
+              } : {}),
+              ...(updateTimeField ? {
+                [updateTimeField.id]: Date.now() as IOpenCellValue
+              } : {}),
+            })
+          }
+          return Promise.resolve();
+        });
+
+        await Promise.allSettled(updatePromises);
+      } catch (error) {
+        // console.error('BatchGeneration: 状态回写失败', error);
       }
 
       // 提交成功后重新统计可提交任务数量

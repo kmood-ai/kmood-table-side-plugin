@@ -9,6 +9,7 @@ import {
   Button,
   Empty,
   Image,
+  message,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -454,6 +455,18 @@ export default function RecordEditing({ disabled, getAssetTableInfo }: RecordEdi
           })}
         </Descriptions>
       </Card>
+
+      <div style={{ padding: '16px', textAlign: 'center' }}>
+        <Button
+          type="primary"
+          block
+          onClick={() => {
+            message.info('功能开发中，请先使用批量生成');
+          }}
+        >
+          生成
+        </Button>
+      </div>
 
       {/* 编辑弹窗 */}
       <EditingModal

@@ -9,6 +9,7 @@ import {
   Typography,
   Spin,
   Select,
+  Button,
 } from 'antd';
 import {
   AppstoreOutlined,
@@ -406,53 +407,60 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
         body: { padding: '12px 16px' },
       }}
     >
-      {/* 资产表选择器 */}
-      {assetTables.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <Space>
-            <Text style={{ fontSize: 14 }}>{t('operation.selectAssetTable')}:</Text>
-            <Select
-              style={{ width: 200 }}
-              value={currentSelectAssetTable?.id}
-              onChange={(value) => {
-                // 根据 ID 查找对应的表对象
-                const findTableById = async () => {
-                  for (const table of assetTables) {
-                    const tableId = table.id;
-                    if (tableId === value) {
-                      setCurrentSelectAssetTable(table);
-                      break;
-                    }
-                  }
-                };
-                findTableById();
-              }}
-              placeholder={t('operation.pleaseSelectAssetTable')}
-              options={assetTableOptions}
+      {tableType === 'production' && (
+        <>
+
+
+          {/* 资产表选择器 */}
+          {assetTables.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <Space>
+                <Text style={{ fontSize: 14 }}>{t('operation.selectAssetTable')}:</Text>
+                <Select
+                  style={{ width: 200 }}
+                  value={currentSelectAssetTable?.id}
+                  onChange={(value) => {
+                    // 根据 ID 查找对应的表对象
+                    const findTableById = async () => {
+                      for (const table of assetTables) {
+                        const tableId = table.id;
+                        if (tableId === value) {
+                          setCurrentSelectAssetTable(table);
+                          break;
+                        }
+                      }
+                    };
+                    findTableById();
+                  }}
+                  placeholder={t('operation.pleaseSelectAssetTable')}
+                  options={assetTableOptions}
+                />
+              </Space>
+            </div>
+          )}
+
+          {assetTables.length === 0 && (
+            <Alert
+              message={t('operation.noAssetTableFound')}
+              description={t('operation.createAssetTableFirst')}
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
             />
-          </Space>
-        </div>
-      )}
+          )}
 
-      {assetTables.length === 0 && (
-        <Alert
-          message={t('operation.noAssetTableFound')}
-          description={t('operation.createAssetTableFirst')}
-          type="warning"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
-      )}
+          {/* 当没有选择资产表时，显示提示信息并禁用操作 */}
+          {!currentSelectAssetTable && assetTables.length > 0 && (
+            <Alert
+              message="请先选择资产表"
+              description="需要选择资产表后才能进行批量操作"
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+          )}
+        </>
 
-      {/* 当没有选择资产表时，显示提示信息并禁用操作 */}
-      {!currentSelectAssetTable && assetTables.length > 0 && (
-        <Alert
-          message="请先选择资产表"
-          description="需要选择资产表后才能进行批量操作"
-          type="warning"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
       )}
       <Tabs
         activeKey={activeTab}
