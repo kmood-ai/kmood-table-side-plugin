@@ -136,15 +136,34 @@ export interface FileUploadRef {
   updateSelectedFiles: (next: (prev: SelectedFile[]) => SelectedFile[]) => void;
 }
 
+/**
+ * 附件数据接口，用于展示已有附件
+ */
+export interface AttachmentData {
+  /** 附件ID */
+  id: string;
+  /** 附件名称 */
+  name: string;
+  /** 下载URL */
+  downloadUrl?: string;
+}
+
 interface FileUploadProps {
   disabled?: boolean;
   needUploadServer?: boolean;
   /** 支持的文件类型，如 ['.txt', '.csv']，不传则使用默认类型 */
   accept?: string[];
+  /** 已有附件数据，用于展示和下载 */
+  attachments?: AttachmentData[];
   onUploadChange?: (results: SelectedFile[]) => void;
 }
 
-const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(function FileUpload({ disabled = false, accept, onUploadChange }, ref) {
+const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(function FileUpload({
+  disabled = false,
+  accept,
+  attachments = [],
+  onUploadChange
+}, ref) {
   const { t } = useI18n();
   // 使用传入的 accept 或默认类型
   const acceptTypes = accept?.join(',') || ACCEPTED_TYPES;
@@ -152,7 +171,6 @@ const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(function FileUploa
   const selectedFilesRef = useRef<SelectedFile[]>([]);
   // eslint-disable-next-line react-hooks/refs
   selectedFilesRef.current = selectedFiles;
-
 
   const updateSelectedFiles = useCallback((next: (prev: SelectedFile[]) => SelectedFile[]) => {
     const prev = selectedFilesRef.current;
@@ -195,6 +213,12 @@ const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(function FileUploa
     }
     setEditingIndex(null);
     setEditingName('');
+  };
+
+  const onDownloadAttachment = (e: React.MouseEvent<HTMLElement>, attachment: AttachmentData) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.open(attachment.downloadUrl, '_blank');
   };
 
   /**
@@ -340,6 +364,33 @@ const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(function FileUploa
             types: accept ? accept.map(ext => ext.replace('.', '')).join(', ') : 'txt, csv, json, xml, md, log, xlsx, xls',
           })}
         </p>
+
+        {/* 已有附件列表 - 以超链接形式显示在拖拽区域内 */}
+        {attachments.length > 0 && (
+          <div style={{ marginTop: 16, textAlign: 'center' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px' }}>
+              {attachments.map((attachment, index) => (
+                <div key={attachment.id || index} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4 }}>
+                  {getFileIcon(attachment.name)}
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{
+                      padding: 0,
+                      height: 'auto',
+                      fontSize: '12px',
+                      textDecoration: 'underline',
+                      color: '#1890ff'
+                    }}
+                    onClick={(e) => onDownloadAttachment(e, attachment)}
+                  >
+                    {attachment.name}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </Upload.Dragger>
 
       {/* 文件列表 */}

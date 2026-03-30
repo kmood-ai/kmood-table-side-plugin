@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Card,
   Tabs,
@@ -24,7 +24,7 @@ import { outerClient } from '../services';
 import { AssetType } from '../../generated/ipimage/common/types_pb.js';
 import { message } from 'antd';
 import RecordEditing from './RecordEditing';
-import type { SelectedFile } from './FileUpload.js';
+import type { AttachmentData, SelectedFile } from './FileUpload.js';
 import { FeishuUAsset, SourcePlatform } from '../../generated/ipimage/shotify/outer_pb.js';
 import useSelection from '../hooks/useSelection.js';
 import { useI18n } from '../i18n';
@@ -57,6 +57,14 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
   const [assetTables, setAssetTables] = useState<ITable[]>([]);
   const [currentSelectAssetTable, setCurrentSelectAssetTable] = useState<ITable | null>(null);
   const [assetTableOptions, setAssetTableOptions] = useState<Array<{ value: string; label: string }>>([]);
+
+  const attachments: AttachmentData[] = useMemo(() => {
+    return [{
+      id: '1',
+      name: '文件模版.xlsx',
+      downloadUrl: 'https://resource.kmood.cn/AIGC/TEXT/20260328/7993836b166ea2f51bf623930f440283.xlsx',
+    }];
+  }, []);
 
   // 当 tableType 变化时，重置 activeTab 为对应的第一个 tab key
   useEffect(() => {
@@ -374,6 +382,7 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
             accept={['xlsx']}
             disabled={disabled || !currentSelectAssetTable}
             onSubmit={onSubmitBatchPrompt}
+            attachments={attachments}
           />
         </CollapsibleSection>
 
@@ -409,8 +418,6 @@ export default function OperationArea({ disabled }: OperationAreaProps) {
     >
       {tableType === 'production' && (
         <>
-
-
           {/* 资产表选择器 */}
           {assetTables.length > 0 && (
             <div style={{ marginBottom: 16 }}>

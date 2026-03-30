@@ -103,11 +103,11 @@ function WelcomeSection({ onTokenChange }: WelcomeSectionProps) {
   // 初始化：从 localStorage 读取 token，若无则查询映射表
   useEffect(() => {
     const cached = localStorage.getItem(TOKEN_STORAGE_KEY);
-    if (cached) {
+    if (baseId) {
+      fetchTokenFromMapping(baseId);
+    } else if (cached) {
       setToken(cached);
       onTokenChange(cached);
-    } else if (baseId) {
-      fetchTokenFromMapping(baseId);
     } else {
       onTokenChange(null);
     }

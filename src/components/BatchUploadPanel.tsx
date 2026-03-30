@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Space, Alert, Typography, Button, message } from 'antd';
-import FileUpload, { type SelectedFile, type FileUploadRef } from './FileUpload';
+import FileUpload, { type SelectedFile, type FileUploadRef, type AttachmentData as FileAttachmentData } from './FileUpload';
 import { useSelection } from '../hooks';
 import type { UploadResult } from '../services/uploadService';
 import { DeleteOutlined } from '@ant-design/icons';
@@ -36,6 +36,11 @@ export type OnSubmitReturn = {
   traceId?: string;
 } | undefined;
 
+/**
+ * 附件数据接口，用于展示已有附件
+ */
+export type AttachmentData = FileAttachmentData;
+
 interface BatchUploadPanelProps {
   /** 面板标题 */
   title?: string;
@@ -47,6 +52,8 @@ interface BatchUploadPanelProps {
   needUploadServer?: boolean;
   /** 是否支持多选文件，默认 true */
   multiple?: boolean;
+  /** 已有附件数据，用于展示和下载 */
+  attachments?: AttachmentData[];
   /** 提交回调，支持异步 */
   onSubmit?: (results: SelectedFile[]) => Promise<OnSubmitReturn | undefined> | void;
 }
@@ -60,6 +67,7 @@ export default function BatchUploadPanel({
   disabled,
   accept,
   needUploadServer = true,
+  attachments,
   onSubmit,
 }: BatchUploadPanelProps) {
   const { t } = useI18n();
@@ -129,6 +137,7 @@ export default function BatchUploadPanel({
         disabled={disabled || !tableId}
         accept={accept}
         needUploadServer={needUploadServer}
+        attachments={attachments}
         onUploadChange={handleUploadComplete}
       />
 
